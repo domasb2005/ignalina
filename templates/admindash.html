@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NATO rysio admin</title>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        /* Center everything on the page */
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Center buttons horizontally */
+        button {
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* Make everything bigger */
+        button, td {
+            font-size: 1em;
+        }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body>
+    <script>
+        function restart() {
+            fetch('/admin/restartgame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+            });
+        }
+        function restartPc() {
+            fetch('/admin/restarthost', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+
+            });
+        }
+    </script>
+    <table style="">
+        <tr>
+            <td><button onclick="restartPc()">Perkrauti kompa</button></td>
+            <td><button onclick="restart()">Is naujo paleisti zaidima</button></td>
+        </tr>
+    </table>
+</body>
+</html>

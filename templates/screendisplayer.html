@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ekranas</title>
+    <script>
+        // Get content every 2s
+        // Make sure to check if 304, if yes then skip
+
+        function getContent() {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState === 4 && this.status !== 204) {
+                    // Reload iframe
+                    console.log('Reloading iframe');
+                    console.log(this.status);
+                    console.log(this)
+                    document.getElementsByTagName('iframe')[0].contentWindow.location.reload();
+                }
+            };
+            xhttp.open("GET", "changed", true);
+            xhttp.send();
+        }
+
+        getContent();
+        setInterval(getContent, 2000);
+    </script>
+</head>
+<body style="background-color: #000; margin: 0;overflow: hidden;">
+<iframe src="content" frameborder="0" style="width: 100vw; height: 100vh;"></iframe>
+</body>
+</html>
