@@ -11,7 +11,7 @@ auth = flask_httpauth.HTTPBasicAuth()
 
 @auth.verify_password
 def verify_password(username, password):
-    if username == 'nato' and password == 'rysininkas':
+    if username == 'atomine' and password == 'elektrine':
         return True
     return False
 
