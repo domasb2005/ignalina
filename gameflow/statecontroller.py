@@ -9,6 +9,7 @@ class StateController:
         self._available_states = {"idle": -1,
                                   "phone_check": -1,
                                   "game_early_end_timeout": -1,
+                                  "waiting": -1,
                                   "initial_call": 30,
                                   "initial_call_up": 20 + 16,
                                   "dial_up": 60,
@@ -29,6 +30,7 @@ class StateController:
 
         self._infoscreen_state = "idle"
         self._available_infoscreen_states = ["idle", "game_early_end_timeout",
+                                             "waiting",
                                              "initial_call",
                                              "initial_call_up",
                                              "dial_up",

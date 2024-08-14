@@ -316,6 +316,12 @@ def main():
                 client.loop_stop()  # Stop the MQTT loop when exiting the control_rods state
 
 
+        elif state.get_state() == "waiting":
+            state.set_infoscreen_state("waiting")
+            time.sleep(30)
+            #send message to pico w
+            state.set_state("turbine_startup")
+
         elif state.get_state() == "turbine_startup": 
             state.set_infoscreen_state("turbine_startup")
             print("Waiting for button 8 to be pressed...")
