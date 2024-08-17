@@ -86,11 +86,26 @@ def main():
 
     while True:
         if state.get_state() == "idle":
+
+            MQTT_BROKER_HOST = "0.0.0.0"
+            MQTT_BROKER_PORT = 1883
+
+            #connect to mqtt broker
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+            client.loop_start()  # Start the MQTT loop to process messages
+            client.publish("reactor/reset", "new_game")
+
             serial_reader_0 = SerialReader('/dev/ttyACM0')
             serial_reader_1 = SerialReader('/dev/ttyACM1')
     
             serial_reader_0.start()
             serial_reader_1.start()
+
+
+
             state.set_infoscreen_state("idle")
             print("Waiting for button 0 to be pressed...")
             while state.get_state() == "idle":
@@ -127,7 +142,7 @@ def main():
                 if is_button_pressed('Putdown', serial_data):
                     print("Button Putdown is pressed. Moving on with the rest of the code.")
                     pygame.mixer.quit()
-                    state.set_state("dial_up")
+                    state.set_state("second_call")
                 time.sleep(0.1)
 
         elif state.get_state() == "dial_up":
@@ -146,7 +161,7 @@ def main():
                     if len(entered_number) == 4:
                         if entered_number == correct_number:
                             print("Correct number entered!")
-                            state.set_state("second_call")
+                            state.set_state("second_call_up")
                         else:
                             print("Incorrect number. Please try again.")
                             state.set_infoscreen_state("wrong_number")
@@ -160,7 +175,7 @@ def main():
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Raised', serial_data):
                     print("Button Raised is pressed. Moving on with the rest of the code.")
-                    state.set_state("second_call_up")
+                    state.set_state("dial_up")
                 time.sleep(0.1)
 
         elif state.get_state() == "second_call_up":
