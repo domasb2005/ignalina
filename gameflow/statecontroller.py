@@ -21,7 +21,7 @@ class StateController:
                                   "water_cleaning": 60,
                                   "idle_pump": 60,
                                   "main_pump": 60,
-                                  "control_rods": 60,
+                                  "control_rods": 180,
                                   "turbine_startup": 60,
                                   "turbine_connection": 180,
                                   "steam_connection": 60,
