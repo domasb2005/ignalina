@@ -25,6 +25,7 @@ class StateController:
                                   "turbine_startup": 60,
                                   "turbine_connection": 180,
                                   "steam_connection": 60,
+                                  "backup_pumps": 60,
                                   "power_up": 60,
                                   "game_end": -1}
 

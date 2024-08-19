@@ -1,9 +1,11 @@
 import paho.mqtt.client as mqtt
 import time
+
 # MQTT Broker details
-MQTT_BROKER_HOST = "0.0.0.0"  # Replace with your broker's IP address
+MQTT_BROKER_HOST = "192.168.4.142"  # Replace with your broker's IP address
 MQTT_BROKER_PORT = 1883
-MQTT_TOPIC = "reactor/power_percentage"
+MQTT_TOPIC = "pico/servo/control"
+PUBLISH_MESSAGE = "start"  # The message to trigger the servo
 
 # Callback when the client receives a connection acknowledgment from the broker
 def on_connect(client, userdata, flags, rc):
@@ -19,6 +21,9 @@ def on_message(client, userdata, msg):
     try:
         message = msg.payload.decode()
         print(f"Received message on topic {msg.topic}: {message}")
+        if message == "start":
+            print("Triggering servo movement...")
+            # Here you would trigger the servo movement
     except Exception as e:
         print(f"Error decoding message: {e}")
 
@@ -41,9 +46,15 @@ while not connected:
 client.loop_start()
 
 try:
-    # Keep the script running to listen to incoming messages
-    while True:
-        time.sleep(1)  # Sleep to prevent high CPU usage
+    # Optionally, publish a start message to trigger servo movement
+    client.publish(MQTT_TOPIC, "prepare")
+    time.sleep(5)  # Wait for the message to be received
+    client.publish(MQTT_TOPIC, PUBLISH_MESSAGE)
+    print(f"Published message: {PUBLISH_MESSAGE} to topic: {MQTT_TOPIC}")
+
+    # Wait before the next iteration or action
+    time.sleep(10)  # Adjust the delay as needed
+
 except KeyboardInterrupt:
     print("Exiting...")
     client.loop_stop()
