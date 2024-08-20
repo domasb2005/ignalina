@@ -73,16 +73,32 @@ def main():
         if rc == 0:
             print("Connected to MQTT broker successfully")
             client.subscribe("reactor/power_percentage")
+            client.subscribe("pico/servo/control")  # Subscribe to the servo topic here as well
         else:
             print(f"Failed to connect, return code {rc}")
 
     def on_message(client, userdata, msg):
         nonlocal current_percentage
-        try:
-            current_percentage = int(msg.payload.decode().strip())
-            print(f"Received reactor power percentage: {current_percentage}%")
-        except Exception as e:
-            print(f"Error decoding message: {e}")
+        
+        # Check the topic to decide the action
+        if msg.topic == "reactor/power_percentage":
+            try:
+                current_percentage = int(msg.payload.decode().strip())
+                print(f"Received reactor power percentage: {current_percentage}%")
+                # Handle the reactor power percentage as needed
+            except Exception as e:
+                print(f"Error decoding message: {e}")
+        
+        elif msg.topic == "pico/servo/control":
+            message = msg.payload.decode().strip()
+            print(f"Received servo control message: {message}")
+            
+            if message == "8" and state.get_state() == "turbine_startup":
+                print("Message '8' received via MQTT. Moving on with the rest of the code.")
+                state.set_state("turbine_connection")
+            elif message == "9" and state.get_state() == "turbine_connection":
+                print("Message '9' received via MQTT. Moving on with the rest of the code.")
+                state.set_state("power_up")
 
     def start_alarm():
         nonlocal alarm_active
@@ -107,22 +123,15 @@ def main():
         client.loop_stop()  # Stop the loop
         client.disconnect()  # Disconnect from the MQTT broker
 
-
     button_port, telephone_port = find_serial_ports()
 
     serial_reader_0 = SerialReader(button_port)
     serial_reader_1 = SerialReader(telephone_port)
 
-
     while True:
-
-
         if state.get_state() == "idle":
             if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
-                MQTT_BROKER_HOST = "0.0.0.0"
-                MQTT_BROKER_PORT = 1883
-
-                #connect to mqtt broker
+                # Connect to MQTT broker
                 client = mqtt.Client()
                 client.on_connect = on_connect
                 client.on_message = on_message
@@ -135,6 +144,7 @@ def main():
                         print(f"Connection failed: {e}. Retrying in 5 seconds...")
                         time.sleep(5)
                 client.loop_start()  # Start the MQTT loop to process messages
+                state.mqtt_initialized = True
 
             client.publish("reactor/reset", "new_game")
             client.publish("pico/servo/control", "prepare")
@@ -142,7 +152,7 @@ def main():
             if not serial_reader_0.is_alive():
                 serial_reader_0 = SerialReader(button_port)
                 serial_reader_0.start()
-            if  not serial_reader_1.is_alive():
+            if not serial_reader_1.is_alive():
                 serial_reader_1 = SerialReader(telephone_port)
                 serial_reader_1.start()
 
@@ -387,25 +397,68 @@ def main():
             time.sleep(18)
             state.set_state("turbine_startup")
 
-        elif state.get_state() == "turbine_startup": 
+        elif state.get_state() == "turbine_startup":
             state.set_infoscreen_state("turbine_startup")
-            print("Waiting for button 8 to be pressed...")
+            print("Waiting for message '8' via MQTT...")
+
+            if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
+                # MQTT Client Setup
+                client = mqtt.Client()
+                client.on_connect = on_connect
+                client.on_message = on_message
+
+                connected = False
+                while not connected:
+                    try:
+                        client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+                        connected = True
+                    except Exception as e:
+                        print(f"Connection failed: {e}. Retrying in 5 seconds...")
+                        time.sleep(5)
+
+                state.mqtt_initialized = True
+
+            client.loop_start()  # Start the MQTT loop to process messages
+
+            def on_message(client, userdata, msg):
+                if msg.topic == "pico/servo/control" and msg.payload.decode() == "8":
+                    print("Message '8' received via MQTT. Moving on with the rest of the code.")
+                    state.set_state("turbine_connection")
+
             while state.get_state() == "turbine_startup":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('8', serial_data): 
-                    print("Button 8 is pressed. Moving on with the rest of the code.") 
-                    state.set_state("turbine_connection") 
+                time.sleep(0.1)
+
+
+        elif state.get_state() == "turbine_connection":
+            state.set_infoscreen_state("turbine_connection")
+            print("Waiting for message '9' via MQTT...")
+
+            if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
+                # MQTT Client Setup
+                client = mqtt.Client()
+                client.on_connect = on_connect
+                client.on_message = on_message
+
+                connected = False
+                while not connected:
+                    try:
+                        client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+                        connected = True
+                    except Exception as e:
+                        print(f"Connection failed: {e}. Retrying in 5 seconds...")
+                        time.sleep(5)
+
+                client.loop_start()  # Start the MQTT loop to process messages
+                state.mqtt_initialized = True
+
+            def on_message(client, userdata, msg):
+                if msg.topic == "pico/servo/control" and msg.payload.decode() == "9":
+                    print("Message '9' received via MQTT. Moving on with the rest of the code.")
+                    state.set_state("power_up")
+
+            while state.get_state() == "turbine_connection":
                 time.sleep(0.1)
         
-        elif state.get_state() == "turbine_connection": 
-            state.set_infoscreen_state("turbine_connection")
-            print("Waiting for button 9 to be pressed...")
-            while state.get_state() == "turbine_connection":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('9', serial_data): 
-                    print("Button 9 is pressed. Moving on with the rest of the code.") 
-                    state.set_state("steam_connection") 
-                time.sleep(0.1)
         
         elif state.get_state() == "steam_connection": 
             state.set_infoscreen_state("steam_connection")
@@ -419,14 +472,81 @@ def main():
         
         elif state.get_state() == "power_up": 
             state.set_infoscreen_state("power_up")
-            print("Waiting for button 11 to be pressed...")
-            while state.get_state() == "power_up":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('11', serial_data): 
-                    print("Button 11 is pressed. Moving on with the rest of the code.") 
-                    state.set_state("game_end") 
-                time.sleep(0.1)
-        
+            if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
+                # MQTT Client Setup
+                client = mqtt.Client()
+                client.on_connect = on_connect
+                client.on_message = on_message
+
+                connected = False
+                while not connected:
+                    try:
+                        client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+                        connected = True
+                    except Exception as e:
+                        print(f"Connection failed: {e}. Retrying in 5 seconds...")
+                        time.sleep(5)
+
+                client.loop_start()  # Start the MQTT loop to process messages
+
+                # Mark the MQTT client as initialized
+                state.mqtt_initialized = True
+
+            print("Control rods state is active, processing logic...")
+            if current_percentage is not None:
+                if current_percentage < 50:
+                    if alarm_active:
+                        stop_alarm()
+                    time_at_five = time_at_six = time_above_six = None
+                    current_percentage = None  # Reset current_percentage after handling
+
+                elif current_percentage == 50:
+                    if time_at_five is None:
+                        time_at_five = time.time()
+                        print("Starting timer for state 'game_end'.")
+                    elif time.time() - time_at_five >= 3:
+                        print("Message has been 5 for 3 consecutive seconds. Changing state to 'game_end'")
+                        state.set_state("game_end")
+                        stop_alarm()
+                        time_at_five = None
+                        current_percentage = None  # Reset current_percentage after handling
+
+                elif current_percentage == 51:
+                    if time_at_six is None:
+                        time_at_six = time.time()
+                        print("Starting timer for state 'game_early_end_timeout'.")
+                    elif time.time() - time_at_six >= 10:
+                        print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
+                        stop_alarm()
+                        state.set_state("game_early_end_timeout")
+                        time_at_six = None
+                        current_percentage = None  # Reset current_percentage after handling
+
+                    if not alarm_active and current_percentage is not None:
+                        start_alarm()
+
+                elif current_percentage > 51:
+                    if time_above_six is None:
+                        time_above_six = time.time()
+                        print("Starting timer for state 'game_early_end_timeout' due to >6%.")
+                    elif time.time() - time_above_six >= 3:
+                        print("Message has been above 6 for 3 consecutive seconds. Resetting percentage to 0.")
+                        stop_alarm()
+                        state.set_state("game_early_end_timeout")
+                        time_above_six = None
+                        current_percentage = None  # Reset current_percentage after handling
+
+                    if not alarm_active and current_percentage is not None:
+                        start_alarm()
+
+                else:
+                    if alarm_active:
+                        stop_alarm()
+                    time_at_five = time_at_six = time_above_six = None
+                    current_percentage = None  # Reset current_percentage after handling
+
+            time.sleep(1)  # Prevent tight looping
+
 
         elif state.get_state() == "game_early_end_timeout":
             pygame.mixer.quit()
