@@ -3,6 +3,7 @@ import serial
 import time
 import pyudev
 
+# Define the SerialReader class
 class SerialReader(threading.Thread):
     def __init__(self, port, baudrate=115200, timeout=1):
         threading.Thread.__init__(self)
@@ -26,60 +27,65 @@ class SerialReader(threading.Thread):
         data = self.serial_data
         self.serial_data = None
         return data
-    
+
+# Function to find and correctly assign the serial ports
 def find_serial_ports():
     context = pyudev.Context()
-    found_ports = []
+    found_ports = {}
 
     for device in context.list_devices(subsystem='tty'):
         if 'ID_VENDOR_ID' in device and 'ID_MODEL_ID' in device:
             vid = device.get('ID_VENDOR_ID')
             pid = device.get('ID_MODEL_ID')
             dev_node = device.device_node
+            serial = device.get('ID_SERIAL_SHORT')  # Unique serial number
+            print(f"Found device: VID={vid}, PID={pid}, Node={dev_node}, Serial={serial}")
 
-            if vid == '2e8a' and pid == '0005':
-                found_ports.append(dev_node)
+            # Match the serial number to the correct device
+            if serial == "e66141040383622c":  # Serial number for Buttons
+                found_ports['telephone'] = dev_node
+            elif serial == "e6614104035f442e":  # Serial number for Telephone
+                found_ports['buttons'] = dev_node
 
-    if len(found_ports) < 2:
-        raise Exception("Unable to find the required serial ports. Check device connections.")
+    if 'buttons' not in found_ports or 'telephone' not in found_ports:
+        raise Exception("Unable to find both required serial ports. Check device connections.")
 
-    # Assign the first found port to button_port and the second to telephone_port
-    button_port = found_ports[0]
-    telephone_port = found_ports[1]
-    
-    return button_port, telephone_port
+    return found_ports['buttons'], found_ports['telephone']
 
-
+# Main function
 def main():
+    try:
+        button_port, telephone_port = find_serial_ports()
+        print(f"Button port: {button_port}, Telephone port: {telephone_port}")
 
-    button_port, telephone_port = find_serial_ports()
+        # Initialize and start SerialReaders for both devices
+        serial_reader_buttons = SerialReader(button_port)
+        serial_reader_telephone = SerialReader(telephone_port)
+        serial_reader_buttons.start()
+        serial_reader_telephone.start()
 
-    serial_reader_0 = SerialReader(button_port)
-    serial_reader_1 = SerialReader(telephone_port)
-
-    
-    # Start the serial reader threads
-    serial_reader_0.start()
-    serial_reader_1.start()
+    except Exception as e:
+        print(e)
+        return
 
     try:
         while True:
-            # Get and print data from the first serial reader
-            data_0 = serial_reader_0.get_data()
-            if data_0:
-                print(f"Serial 0 received: {data_0}")
+            # Get and print data from the buttons serial reader
+            data_buttons = serial_reader_buttons.get_data()
+            if data_buttons:
+                print(f"Buttons serial received: {data_buttons}")
 
-            # Get and print data from the second serial reader
-            data_1 = serial_reader_1.get_data()
-            if data_1:
-                print(f"Serial 1 received: {data_1}")
+            # Get and print data from the telephone serial reader
+            data_telephone = serial_reader_telephone.get_data()
+            if data_telephone:
+                print(f"Telephone serial received: {data_telephone}")
             
             time.sleep(0.1)  # Sleep for a short time to prevent high CPU usage
 
     except KeyboardInterrupt:
         print("Stopping serial readers...")
-        serial_reader_0.stop()
-        serial_reader_1.stop()
+        serial_reader_buttons.stop()
+        serial_reader_telephone.stop()
 
 if __name__ == "__main__":
     main()

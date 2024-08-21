@@ -35,25 +35,26 @@ def is_button_pressed(button, serial_data):
 
 def find_serial_ports():
     context = pyudev.Context()
-    found_ports = []
+    found_ports = {}
 
     for device in context.list_devices(subsystem='tty'):
         if 'ID_VENDOR_ID' in device and 'ID_MODEL_ID' in device:
             vid = device.get('ID_VENDOR_ID')
             pid = device.get('ID_MODEL_ID')
             dev_node = device.device_node
+            serial = device.get('ID_SERIAL_SHORT')  # Unique serial number
+            print(f"Found device: VID={vid}, PID={pid}, Node={dev_node}, Serial={serial}")
 
-            if vid == '2e8a' and pid == '0005':
-                found_ports.append(dev_node)
+            # Match the serial number to the correct device
+            if serial == "e66141040383622c":  # Serial number for Buttons
+                found_ports['telephone'] = dev_node
+            elif serial == "e6614104035f442e":  # Serial number for Telephone
+                found_ports['buttons'] = dev_node
 
-    if len(found_ports) < 2:
-        raise Exception("Unable to find the required serial ports. Check device connections.")
+    if 'buttons' not in found_ports or 'telephone' not in found_ports:
+        raise Exception("Unable to find both required serial ports. Check device connections.")
 
-    # Assign the first found port to button_port and the second to telephone_port
-    button_port = found_ports[0]
-    telephone_port = found_ports[1]
-    
-    return button_port, telephone_port
+    return found_ports['buttons'], found_ports['telephone']
 
 def main():
     state = statecontroller.StateController()
@@ -98,24 +99,27 @@ def main():
                 state.set_state("turbine_connection")
             elif message == "9" and state.get_state() == "turbine_connection":
                 print("Message '9' received via MQTT. Moving on with the rest of the code.")
+                client.publish("reactor/counter", "go")
                 state.set_state("power_up")
 
     def start_alarm():
         nonlocal alarm_active
         if not alarm_active:
             print("Starting alarm on main PC.")
-            pygame.mixer.init()
-            pygame.mixer.music.load("./data/danger.mp3")
-            pygame.mixer.music.set_volume(0.5)
-            pygame.mixer.music.play(-1)
+            # pygame.mixer.init()
+            # pygame.mixer.music.load("./data/danger.mp3")
+            # pygame.mixer.music.set_volume(0.5)
+            # pygame.mixer.music.play(-1)
+            client.publish("reactor/alarm", "start")
             alarm_active = True
 
     def stop_alarm():
         nonlocal alarm_active
         if alarm_active:
             print("Stopping alarm on main PC.")
-            pygame.mixer.music.stop()
-            pygame.mixer.quit()
+            # pygame.mixer.music.stop()
+            # pygame.mixer.quit()
+            client.publish("reactor/alarm", "stop")
             alarm_active = False
 
     def disconnect_mqtt():
@@ -146,7 +150,7 @@ def main():
                 client.loop_start()  # Start the MQTT loop to process messages
                 state.mqtt_initialized = True
 
-            client.publish("reactor/reset", "new_game")
+            client.publish("reactor/counter", "prepare")
             client.publish("pico/servo/control", "prepare")
 
             if not serial_reader_0.is_alive():
@@ -220,6 +224,7 @@ def main():
                 time.sleep(0.1)  # Sleep for 100 milliseconds
 
         elif state.get_state() == "second_call":
+            state.set_infoscreen_state("dial_up")
             print("Waiting for button Raised to be pressed...")
             while state.get_state() == "second_call":
                 serial_data = serial_reader_1.get_data()
@@ -229,7 +234,7 @@ def main():
                 time.sleep(0.1)
 
         elif state.get_state() == "second_call_up":
-            state.set_infoscreen_state("initial_call_up")
+            state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             time.sleep(0.5)
             pygame.mixer.init(channels=1, devicename="SC")
             pygame.mixer.music.load("./data/call2.mp3")
@@ -309,7 +314,10 @@ def main():
                 serial_data = serial_reader_0.get_data()
                 if is_button_pressed('7', serial_data): 
                     print("Button 7 is pressed. Moving on with the rest of the code.") 
+                    client.publish("reactor/counter", "go")
+                    state.set_infoscreen_state("control_rods")
                     state.set_state("control_rods") 
+
                 time.sleep(0.1)
         
         elif state.get_state() == "control_rods": 
@@ -345,37 +353,28 @@ def main():
                 elif current_percentage == 5:
                     if time_at_five is None:
                         time_at_five = time.time()
+                        stop_alarm()
                         print("Starting timer for state 'waiting'.")
                     elif time.time() - time_at_five >= 3:
+                        
+                        client.publish("reactor/counter", "lock5")
                         print("Message has been 5 for 3 consecutive seconds. Changing state to 'waiting'.")
                         state.set_state("waiting")
                         stop_alarm()
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage == 6:
+                elif current_percentage > 5:
                     if time_at_six is None:
                         time_at_six = time.time()
+                        state.set_infoscreen_state("wrong_percentage")
                         print("Starting timer for state 'game_early_end_timeout'.")
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
                         stop_alarm()
+                        client.publish("reactor/counter", "prepare")
                         state.set_state("game_early_end_timeout")
                         time_at_six = None
-                        current_percentage = None  # Reset current_percentage after handling
-
-                    if not alarm_active and current_percentage is not None:
-                        start_alarm()
-
-                elif current_percentage > 6:
-                    if time_above_six is None:
-                        time_above_six = time.time()
-                        print("Starting timer for state 'game_early_end_timeout' due to >6%.")
-                    elif time.time() - time_above_six >= 3:
-                        print("Message has been above 6 for 3 consecutive seconds. Resetting percentage to 0.")
-                        stop_alarm()
-                        state.set_state("game_early_end_timeout")
-                        time_above_six = None
                         current_percentage = None  # Reset current_percentage after handling
 
                     if not alarm_active and current_percentage is not None:
@@ -454,6 +453,7 @@ def main():
             def on_message(client, userdata, msg):
                 if msg.topic == "pico/servo/control" and msg.payload.decode() == "9":
                     print("Message '9' received via MQTT. Moving on with the rest of the code.")
+                    client.publish("reactor/counter", "go")
                     state.set_state("power_up")
 
             while state.get_state() == "turbine_connection":
@@ -506,18 +506,21 @@ def main():
                         print("Starting timer for state 'game_end'.")
                     elif time.time() - time_at_five >= 3:
                         print("Message has been 5 for 3 consecutive seconds. Changing state to 'game_end'")
+                        client.publish("reactor/counter", "lock50")
                         state.set_state("game_end")
                         stop_alarm()
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage == 51:
+                elif current_percentage > 50:
                     if time_at_six is None:
                         time_at_six = time.time()
+                        state.set_infoscreen_state("wrong_percentage")
                         print("Starting timer for state 'game_early_end_timeout'.")
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
                         stop_alarm()
+                        client.publish("reactor/counter", "prepare")
                         state.set_state("game_early_end_timeout")
                         time_at_six = None
                         current_percentage = None  # Reset current_percentage after handling
@@ -525,16 +528,7 @@ def main():
                     if not alarm_active and current_percentage is not None:
                         start_alarm()
 
-                elif current_percentage > 51:
-                    if time_above_six is None:
-                        time_above_six = time.time()
-                        print("Starting timer for state 'game_early_end_timeout' due to >6%.")
-                    elif time.time() - time_above_six >= 3:
-                        print("Message has been above 6 for 3 consecutive seconds. Resetting percentage to 0.")
-                        stop_alarm()
-                        state.set_state("game_early_end_timeout")
-                        time_above_six = None
-                        current_percentage = None  # Reset current_percentage after handling
+
 
                     if not alarm_active and current_percentage is not None:
                         start_alarm()
