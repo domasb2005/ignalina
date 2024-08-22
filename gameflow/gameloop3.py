@@ -56,6 +56,27 @@ def find_serial_ports():
 
     return found_ports['buttons'], found_ports['telephone']
 
+def reset_pico(pico_port):
+    baud_rate = 115200
+    ser = serial.Serial(pico_port, baud_rate, timeout=1)
+    time.sleep(2)  # Wait for the connection to initialize
+
+    # Send Ctrl+C to interrupt any running script and enter the REPL
+    ser.write(b'\x03')
+    time.sleep(1)
+
+    # Send the command to import the machine module with a carriage return and newline
+    ser.write(b'import machine\r\n')
+    time.sleep(1)
+
+    # Send the command to reset the Pico with a carriage return and newline
+    ser.write(b'machine.reset()\r\n')
+    time.sleep(1)
+
+    # Close the serial connection
+    ser.close()
+
+
 def main():
     state = statecontroller.StateController()
 
@@ -127,10 +148,40 @@ def main():
         client.loop_stop()  # Stop the loop
         client.disconnect()  # Disconnect from the MQTT broker
 
-    button_port, telephone_port = find_serial_ports()
 
-    serial_reader_0 = SerialReader(button_port)
-    serial_reader_1 = SerialReader(telephone_port)
+
+    try:
+        button_port, telephone_port = find_serial_ports()
+        print(f"Initial Button port: {button_port}, Telephone port: {telephone_port}")
+
+        # Reset the button Pico
+        reset_pico(button_port)
+
+        # Wait for a moment to ensure the Pico resets properly
+        time.sleep(5)
+
+        # Re-find the serial ports after reset
+        button_port, telephone_port = find_serial_ports()
+        print(f"After reset Button port: {button_port}, Telephone port: {telephone_port}")
+
+        # Initialize and start SerialReaders for both devices
+        serial_reader_0 = SerialReader(button_port)
+        time.sleep(2)
+        serial_reader_1 = SerialReader(telephone_port)
+        serial_reader_0.start()
+        serial_reader_1.start()
+
+    except Exception as e:
+        print(e)
+        return
+
+
+    # button_port, telephone_port = find_serial_ports()
+
+    # serial_reader_0 = SerialReader(button_port)
+    # time.sleep(2)
+    # serial_reader_1 = SerialReader(telephone_port)
+    # time.sleep(2)
 
     while True:
         if state.get_state() == "idle":

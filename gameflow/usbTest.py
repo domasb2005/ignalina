@@ -52,11 +52,42 @@ def find_serial_ports():
 
     return found_ports['buttons'], found_ports['telephone']
 
+# Function to reset the button Pico
+def reset_pico(pico_port):
+    baud_rate = 115200
+    ser = serial.Serial(pico_port, baud_rate, timeout=1)
+    time.sleep(2)  # Wait for the connection to initialize
+
+    # Send Ctrl+C to interrupt any running script and enter the REPL
+    ser.write(b'\x03')
+    time.sleep(1)
+
+    # Send the command to import the machine module with a carriage return and newline
+    ser.write(b'import machine\r\n')
+    time.sleep(1)
+
+    # Send the command to reset the Pico with a carriage return and newline
+    ser.write(b'machine.reset()\r\n')
+    time.sleep(1)
+
+    # Close the serial connection
+    ser.close()
+
 # Main function
 def main():
     try:
         button_port, telephone_port = find_serial_ports()
-        print(f"Button port: {button_port}, Telephone port: {telephone_port}")
+        print(f"Initial Button port: {button_port}, Telephone port: {telephone_port}")
+
+        # Reset the button Pico
+        reset_pico(button_port)
+
+        # Wait for a moment to ensure the Pico resets properly
+        time.sleep(5)
+
+        # Re-find the serial ports after reset
+        button_port, telephone_port = find_serial_ports()
+        print(f"After reset Button port: {button_port}, Telephone port: {telephone_port}")
 
         # Initialize and start SerialReaders for both devices
         serial_reader_buttons = SerialReader(button_port)

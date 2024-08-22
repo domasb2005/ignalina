@@ -2,7 +2,7 @@ import serial
 import time
 
 # Replace '/dev/ttyACM0' with the correct port for your Pico
-pico_port = '/dev/ttyACM2'
+pico_port = '/dev/ttyACM0'
 baud_rate = 115200
 
 # Open serial connection to the Pico
