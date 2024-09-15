@@ -25,6 +25,9 @@ class StateController:
                                   "turbine_startup": 120,
                                   "turbine_connection": 120,
                                   "steam_connection": 60,
+                                  "particle_check": 60,
+                                  "steam_monitoring": 60,
+                                  
                                   "backup_pumps": 60,
                                   "power_up": 60,
                                   "game_end": -1}
@@ -48,6 +51,8 @@ class StateController:
                                              "steam_connection",
                                              "turbine_connection",
                                              "turbine_startup",
+                                             "particle_check",
+                                             "steam_monitoring",
                                              "water_cleaning"
                                              ]
 
