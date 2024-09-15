@@ -134,7 +134,7 @@ lcd.move_to(0, 3)  # Move to the beginning of the fourth line
 lcd.putstr(" koncentracija µg/L")  # Display the text on the fourth line
 
 # Initialize the speed variable
-speed = 0
+speed = 990
 
 # Function to update the speed display
 def update_speed_display(speed):
