@@ -51,6 +51,12 @@ def prepare_servos():
     for servo in servo_pins:
         set_servo_angle(servo, initial_angle)
 
+def clear_speed_display():
+    lcd.move_to(2, 1)  # Starting position of the number
+    lcd.putstr(" " * 16)  # Clear the middle two lines where the number is displayed
+    lcd.move_to(2, 2)
+    lcd.putstr(" " * 16)
+
 def move_servos():
     start_time = utime.ticks_ms()  # Use utime.ticks_ms() for MicroPython
     initial_angle = 150
@@ -98,7 +104,7 @@ def on_message(topic, msg):
     print(f"Received message: {msg}")
     if topic == MQTT_TOPIC_SERVO:
         if msg == b'prepare':
-            speed = 0  # Reset speed to 0
+            clear_speed_display()
             update_speed_display(speed)  # Update the display to show speed as 0
             prepare_servos()
         elif msg == b'start':
@@ -127,14 +133,15 @@ button3 = Pin(21, Pin.IN, Pin.PULL_UP)
 # Display static text on the first and last lines
 lcd.clear()
 lcd.move_to(0, 0)  # Move to the top-left corner of the screen
-lcd.putstr(" Garų priemaišos")  # Display the text on the first line
+lcd.putstr(" Steam Contaminants")  # Display the text on the first line
+# lcd.putstr(" Garų priemaišos")  # Display the text on the first line
 
 lcd.move_to(0, 3)  # Move to the beginning of the fourth line
 # lcd.putstr("apsisukimai per min.")  # Display the text on the fourth line
-lcd.putstr(" koncentracija µg/L")  # Display the text on the fourth line
+lcd.putstr(" Concentration ug/L")  # Display the text on the fourth line
 
 # Initialize the speed variable
-speed = 990
+speed = 0
 
 # Function to update the speed display
 def update_speed_display(speed):
@@ -152,61 +159,41 @@ def update_speed_display(speed):
     else:
         large_number_display.print_large_number(speed_str, 2, 1)  # Display the large number starting at column 2
 
-# Display the initial speed of 0
-update_speed_display(speed)
 
 # Function to manage speed display based on button inputs with timeout
 def manage_speed_display():
     global speed
-    timeout = 120  # 2 minutes timeout
-    start_time = utime.ticks_ms()  # Start the timeout timer using utime
+    speed = 900  # Start speed
+    increments = 5  # Number of updates
+    final_speed = 990  # The final speed value
+    total_duration = 5  # Total duration in seconds
+    update_interval = total_duration / increments  # Time interval between updates
 
-    while True:
-        elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time) / 1000
+    start_time = utime.ticks_ms()  # Start time in milliseconds
 
-        if elapsed_time > timeout:
-            print("Timeout reached. Resetting speed and stopping servos.")
-            speed = 0
-            update_speed_display(speed)
-            prepare_servos()
-            return  # Exit the function and return to the main loop
+    for i in range(increments):
+        # Calculate elapsed time since the last update
+        elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time)
 
-        # Check if button 1 is pressed and increase speed until 1200
-        if button1.value() == 0 and speed < 1200:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 1200:
-                speed = 1200
-            update_speed_display(speed)
-            sleep(0.1)
+        # Wait for 1 second display delay
+        while elapsed_time < (i + 1) * update_interval * 1000:
+            elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time)
 
-        # Check if button 2 is pressed and increase speed until 2400
-        elif button2.value() == 0 and speed < 2400 and speed >= 1200:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 2400:
-                speed = 2400
-            update_speed_display(speed)
-            sleep(0.1)
+        # Increase speed by a random interval between 1 and 10
+        speed += random.randint(1, 10)
+        if i == increments - 1:  # On the last update, set speed to final value
+            speed = final_speed
+        elif speed > final_speed:
+            speed = final_speed  # Ensure speed does not exceed 990 before final update
 
-        # Check if button 3 is pressed and increase speed until 3600
-        elif button3.value() == 0 and speed < 3600 and speed >= 2400:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 3600:
-                speed = 3600
-            update_speed_display(speed)
-            sleep(0.1)
+        # Update the display with the new speed
+        update_speed_display(speed)
+        print(f"Updated speed: {speed}")
 
-        # Check if speed has reached 3600 to start the servo game
-        if speed == 3600:
-            print("Speed 3600 reached. Starting servo game...")
-            client.publish(MQTT_TOPIC_SERVO, b"8")  # Publish '8' to the MQTT topic
-            start_servo_game()  # Start the servo game after reaching 3600
-            break  # Exit the loop once the game starts
+        # Wait for 1 second display delay after each update
+        sleep(1)
 
-        # Small delay to prevent excessive CPU usage
-        sleep(0.05)
+    print("Final speed reached: 990")
 
 # Function to start the servo game with timeout
 def start_servo_game():
@@ -278,6 +265,8 @@ def start_servo_game():
     finally:
         print(f"Stopped at {current_angle} degrees")
 
+
+
 # Check buttons and MQTT messages
 def check_buttons():
     while True:
@@ -286,6 +275,10 @@ def check_buttons():
         for key, button in buttons.items():
             if button.value() == 0:  # Button is pressed (active low)
                 pressed_buttons.append(key)
+                # here if pressed button is '3' (or the actual pin is 12 idk which to take here) then start manage_speed_display()
+                if key == '3':
+                    print("Speed display managed")
+                    manage_speed_display()
         
         if pressed_buttons:
             pressed = ', '.join(pressed_buttons)
