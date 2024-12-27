@@ -1,21 +1,22 @@
 body {
-    background-color: #000;
-    color: #fff;
-    font-family: 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: black;
+    color: white;
+  }
+
+  h1 {
     text-align: center;
-    vertical-align: center;
-}
+    margin-top: 20px;
+    font-size: 5vw;
+  }
 
-.gif {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(270deg);
-}
-
-h1{
-    font-size: 48px;
-}
+  .png {
+    display: block;
+    margin: 20px auto;
+    max-width: 100%;
+  }
 
 .video{
     position: fixed;
@@ -25,13 +26,6 @@ h1{
 
 }
 
-.png{
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(270deg);
-
-}
 
 ol, ul, h3 {
     width: 65%;
