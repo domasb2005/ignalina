@@ -143,6 +143,20 @@ def main():
             client.publish("reactor/alarm", "stop")
             alarm_active = False
 
+    def start_lamp():
+        print("Starting alarm on main PC.")
+        # pygame.mixer.init()
+        # pygame.mixer.music.load("./data/danger.mp3")
+        # pygame.mixer.music.set_volume(0.5)
+        # pygame.mixer.music.play(-1)
+        client.publish("reactor/lamp", "start")
+
+    def stop_lamp():
+        print("Stopping alarm on main PC.")
+        # pygame.mixer.music.stop()
+        # pygame.mixer.quit()
+        client.publish("reactor/lamp", "stop")
+
     def disconnect_mqtt():
         print("Disconnecting from MQTT broker.")
         client.loop_stop()  # Stop the loop
@@ -175,14 +189,6 @@ def main():
         print(e)
         return
 
-
-    # button_port, telephone_port = find_serial_ports()
-
-    # serial_reader_0 = SerialReader(button_port)
-    # time.sleep(2)
-    # serial_reader_1 = SerialReader(telephone_port)
-    # time.sleep(2)
-
     while True:
         if state.get_state() == "idle":
             if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
@@ -203,6 +209,7 @@ def main():
 
             client.publish("reactor/counter", "prepare")
             client.publish("pico/servo/control", "prepare")
+            stop_lamp()
 
             if not serial_reader_0.is_alive():
                 serial_reader_0 = SerialReader(button_port)
@@ -306,57 +313,42 @@ def main():
                 serial_data = serial_reader_0.get_data()
                 if is_button_pressed('1', serial_data):
                     print("Button 1 is pressed. Moving on with the rest of the code.")
-                    state.set_state("circulation_pump")
-                time.sleep(0.1)
-
-        elif state.get_state() == "circulation_pump":
-            print("Waiting for button 2 to be pressed...")
-            state.set_infoscreen_state("circulation_pump")
-            while state.get_state() == "circulation_pump":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('2', serial_data):
-                    print("Button 2 is pressed. Moving on with the rest of the code.")
+                    start_lamp()
                     state.set_state("steam_monitoring")
                 time.sleep(0.1)
-        
+
         elif state.get_state() == "steam_monitoring":
-            print("Waiting for button 3 to be pressed...")
+            print("Waiting for button 2 to be pressed...")
             state.set_infoscreen_state("steam_monitoring")
             while state.get_state() == "steam_monitoring":
                 serial_data = serial_reader_0.get_data()
-                if is_button_pressed('3', serial_data):
-                    print("Button 3 is pressed. Moving on with the rest of the code.")
+                if is_button_pressed('2', serial_data):
+                    print("Button 2 is pressed. Moving on with the rest of the code.")
                     start_alarm()
-                    state.set_state("condenser")
+                    state.set_state("steam_connection")
                 time.sleep(0.1)
         
         elif state.get_state() == "steam_connection":
+            print("Waiting for button 3 to be pressed...")
             state.set_infoscreen_state("steam_connection")
-            print("Waiting for button 4 to be pressed...")
             while state.get_state() == "steam_connection":
+                serial_data = serial_reader_0.get_data()
+                if is_button_pressed('3', serial_data):
+                    print("Button 3 is pressed. Moving on with the rest of the code.")
+                    stop_alarm()
+                    state.set_state("condenser")
+                time.sleep(0.1)
+        
+        elif state.get_state() == "condenser":
+            state.set_infoscreen_state("condenser")
+            print("Waiting for button 4 to be pressed...")
+            while state.get_state() == "condenser":
                 serial_data = serial_reader_0.get_data()
                 if is_button_pressed('4', serial_data):
                     print("Button 4 is pressed. Moving on with the rest of the code.")
-                    stop_alarm()
-                    state.set_state("water_cleaning")
-                
-                if is_button_pressed('11', serial_data):
-                    print("Button 11 is pressed. Setting state to game_end.")
-                    stop_alarm()
-                    state.set_state("game_end")
-                time.sleep(0.1)
-        
-        elif state.get_state() == "water_cleaning":
-            print("Waiting for button 5 to be pressed...")
-            state.set_infoscreen_state("water_cleaning")
-            while state.get_state() == "water_cleaning":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('5', serial_data):
-                    print("Button 5 is pressed. Moving on with the rest of the code.")
                     client.publish("reactor/counter", "go")
-                    state.set_infoscreen_state("control_rods")
                     state.set_state("control_rods")
-                time.sleep(0.1)
+                
         
         elif state.get_state() == "control_rods": 
             # Check if the MQTT client is already connected
@@ -381,14 +373,15 @@ def main():
                 state.mqtt_initialized = True
 
             print("Control rods state is active, processing logic...")
+
             if current_percentage is not None:
-                if current_percentage < 36:
+                if current_percentage < 35:
                     if alarm_active:
                         stop_alarm()
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage == 36:
+                elif current_percentage == 35:
                     if time_at_five is None:
                         time_at_five = time.time()
                         stop_alarm()
@@ -402,7 +395,7 @@ def main():
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage > 36:
+                elif current_percentage > 35:
                     if time_at_six is None:
                         time_at_six = time.time()
                         state.set_infoscreen_state("wrong_percentage")
