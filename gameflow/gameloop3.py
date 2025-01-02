@@ -11,55 +11,57 @@ import subprocess
 import time
 
 # Mapping device names to indices
-DEVICE_MAP = {
-    "phone": "alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output",
-    "ringer": "alsa_output.pci-0000_00_1b.0.analog-stereo",
-    "speaker": "alsa_output.usb-GeneralPlus_USB_Audio_Device-00.analog-stereo"
-}
+# DEVICE_MAP = {
+#     "phone": "alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output",
+#     "ringer": "alsa_output.pci-0000_00_1b.0.analog-stereo",
+#     "speaker": "alsa_output.usb-GeneralPlus_USB_Audio_Device-00.analog-stereo"
+# }
 
-def set_default_sink(sink_name):
-    """Set the default audio sink (output device)."""
-    try:
-        subprocess.run(["pactl", "set-default-sink", sink_name], check=True)
-        print(f"Default sink set to: {sink_name}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error setting default sink: {e}")
 
-def play_through_specific(deviceName, volume, loop, file):
-    """
-    Play audio through a specific device with specified volume and looping option.
 
-    Args:
-        deviceName (str): Name of the device ('phone', 'ringer', 'speaker').
-        volume (int): Volume level (0-100).
-        loop (bool): Whether to loop the audio indefinitely.
-        file (str): Path to the audio file.
-    """
-    if deviceName not in DEVICE_MAP:
-        print(f"Error: Unknown device name '{deviceName}'. Choose from {list(DEVICE_MAP.keys())}.")
-        return
+# def set_default_sink(sink_name):
+#     """Set the default audio sink (output device)."""
+#     try:
+#         subprocess.run(["pactl", "set-default-sink", sink_name], check=True)
+#         print(f"Default sink set to: {sink_name}")
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error setting default sink: {e}")
 
-    # Set the audio sink
-    sink_name = DEVICE_MAP[deviceName]
-    set_default_sink(sink_name)
+# def play_through_specific(deviceName, volume, loop, file):
+#     """
+#     Play audio through a specific device with specified volume and looping option.
 
-    # Initialize pygame mixer
-    pygame.mixer.init()
-    pygame.mixer.music.load(file)
-    pygame.mixer.music.set_volume(volume / 100.0)  # Set volume (0.0 to 1.0)
+#     Args:
+#         deviceName (str): Name of the device ('phone', 'ringer', 'speaker').
+#         volume (int): Volume level (0-100).
+#         loop (bool): Whether to loop the audio indefinitely.
+#         file (str): Path to the audio file.
+#     """
+#     if deviceName not in DEVICE_MAP:
+#         print(f"Error: Unknown device name '{deviceName}'. Choose from {list(DEVICE_MAP.keys())}.")
+#         return
 
-    # Start playback
-    loops = -1 if loop else 0  # -1 for infinite looping
-    pygame.mixer.music.play(loops=loops)
-    print(f"Playing {file} on {deviceName} ({sink_name}) with volume {volume}%")
+#     # Set the audio sink
+#     sink_name = DEVICE_MAP[deviceName]
+#     set_default_sink(sink_name)
 
-    try:
-        while pygame.mixer.music.get_busy():
-            time.sleep(1)  # Keep the program alive while music is playing
-    except KeyboardInterrupt:
-        print("\nStopping playback.")
-        pygame.mixer.music.stop()
-        pygame.mixer.quit()
+#     # Initialize pygame mixer
+#     pygame.mixer.init()
+#     pygame.mixer.music.load(file)
+#     pygame.mixer.music.set_volume(volume / 100.0)  # Set volume (0.0 to 1.0)
+
+#     # Start playback
+#     loops = -1 if loop else 0  # -1 for infinite looping
+#     pygame.mixer.music.play(loops=loops)
+#     print(f"Playing {file} on {deviceName} ({sink_name}) with volume {volume}%")
+
+#     try:
+#         while pygame.mixer.music.get_busy():
+#             time.sleep(1)  # Keep the program alive while music is playing
+#     except KeyboardInterrupt:
+#         print("\nStopping playback.")
+#         pygame.mixer.music.stop()
+#         pygame.mixer.quit()
 
 
 class SerialReader(threading.Thread):
@@ -84,10 +86,49 @@ class SerialReader(threading.Thread):
     def get_data(self):
         data = self.serial_data
         self.serial_data = None
+        # print(data)
+        # print("\n")
         return data
 
+    def clear_data(self):
+        """Clears the current serial data and flushes the input buffer."""
+        self.serial_data = None
+        self.ser.reset_input_buffer()
+
+
+# def is_button_pressed(button, serial_data):
+#     return serial_data and button in serial_data.split(', ')
+
 def is_button_pressed(button, serial_data):
-    return serial_data and button in serial_data.split(', ')
+
+    """
+    Checks if the specified button is pressed in the serial data.
+    If any other digit is found, changes the state to 'game_early_end_timeout'.
+
+    Args:
+        button (str): The expected button to check.
+        serial_data (str): The incoming serial data string.
+        state (StateController): The state controller instance.
+
+    Returns:
+        bool: True if the expected button is pressed, False otherwise.
+    """
+    if not serial_data:
+        return False  # No data received
+
+    # Split the serial data into components (assuming comma-separated values)
+    data_parts = serial_data.split(', ')
+
+    # Check for any unexpected digit
+    for part in data_parts:
+        if part.isdigit() and part != button:
+            print(f"wrong action: Unexpected digit '{part}' received.")
+            state.set_state("game_early_end_timeout")
+            return False  # An unexpected number was found
+
+    # Return whether the expected button is in the data
+    return button in data_parts
+
 
 def find_serial_ports():
     context = pyudev.Context()
@@ -134,9 +175,9 @@ def reset_pico(pico_port):
 
 
 
+state = statecontroller.StateController()
 
 def main():
-    state = statecontroller.StateController()
 
     # MQTT Configuration
     MQTT_BROKER_HOST = "0.0.0.0"
@@ -181,6 +222,7 @@ def main():
                 client.publish("reactor/counter", "go")
                 state.set_state("power_up")
 
+
     def start_alarm():
         nonlocal alarm_active
         if not alarm_active:
@@ -203,6 +245,7 @@ def main():
             # pygame.mixer.quit()
             pygame.mixer.music.stop()
             pygame.mixer.quit()
+
 
     def start_lamp():
         print("Starting alarm on main PC.")
@@ -376,17 +419,24 @@ def main():
         
         elif state.get_state() == "particle_check":
             state.set_infoscreen_state("particle_check")
+            serial_reader_0.clear_data()
+            time.sleep(1)
             print("Waiting for button 1 to be pressed...")
             while state.get_state() == "particle_check":
                 serial_data = serial_reader_0.get_data()
-                if is_button_pressed('1', serial_data):
-                    print("Button 1 is pressed. Moving on with the rest of the code.")
-                    start_lamp()
-                    state.set_state("steam_monitoring")
+                if serial_data:
+                    if is_button_pressed('1', serial_data):
+                        print("Button 1 is pressed. Moving on with the rest of the code.")
+                        start_lamp()
+                        state.set_state("steam_monitoring")
+                    # elif any(char.isdigit() and char != '1' for char in serial_data):
+                    #     print("wrong action")
+                    #     state.set_state("game_early_end_timeout") #there is anything else in the serial data
                 time.sleep(0.1)
 
         elif state.get_state() == "steam_monitoring":
             print("Waiting for button 2 to be pressed...")
+            serial_reader_0.clear_data()
             state.set_infoscreen_state("steam_monitoring")
             while state.get_state() == "steam_monitoring":
                 serial_data = serial_reader_0.get_data()
@@ -399,6 +449,7 @@ def main():
                 time.sleep(0.1)
         
         elif state.get_state() == "steam_connection":
+            serial_reader_0.clear_data()
             print("Waiting for button 3 to be pressed...")
             state.set_infoscreen_state("steam_connection")
             while state.get_state() == "steam_connection":
@@ -410,6 +461,7 @@ def main():
                 time.sleep(0.1)
         
         elif state.get_state() == "condenser":
+            serial_reader_0.clear_data()
             state.set_infoscreen_state("condenser")
             print("Waiting for button 4 to be pressed...")
             while state.get_state() == "condenser":
@@ -492,6 +544,7 @@ def main():
         
 
         elif state.get_state() == "idle_pump":
+            serial_reader_0.clear_data()
             state.set_infoscreen_state("idle_pump")
             print("Waiting for button 5 to be pressed...")
             while state.get_state() == "idle_pump":
@@ -503,6 +556,7 @@ def main():
                 time.sleep(0.1)
         
         elif state.get_state() == "main_pump":
+            serial_reader_0.clear_data()
             state.set_infoscreen_state("main_pump")
             print("Waiting for button 6 to be pressed...")
             while state.get_state() == "main_pump":
@@ -626,11 +680,13 @@ def main():
 
 
         elif state.get_state() == "game_early_end_timeout":
-            pygame.mixer.quit()
             state.set_infoscreen_state("game_early_end_timeout")
+            start_alarm()
+            time.sleep(10)
+            stop_alarm()
             serial_reader_0.stop()
             serial_reader_1.stop()
-            time.sleep(30)
+            time.sleep(10)
             state.set_state("idle")
 
         
@@ -638,7 +694,7 @@ def main():
             state.set_infoscreen_state("game_end")
             serial_reader_0.stop()
             serial_reader_1.stop()
-            time.sleep(30)
+            time.sleep(20)
             state.set_state("idle")
 
 
