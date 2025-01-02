@@ -6,6 +6,62 @@ import pygame
 import statecontroller
 import pyudev
 
+import pygame
+import subprocess
+import time
+
+# Mapping device names to indices
+DEVICE_MAP = {
+    "phone": "alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output",
+    "ringer": "alsa_output.pci-0000_00_1b.0.analog-stereo",
+    "speaker": "alsa_output.usb-GeneralPlus_USB_Audio_Device-00.analog-stereo"
+}
+
+def set_default_sink(sink_name):
+    """Set the default audio sink (output device)."""
+    try:
+        subprocess.run(["pactl", "set-default-sink", sink_name], check=True)
+        print(f"Default sink set to: {sink_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error setting default sink: {e}")
+
+def play_through_specific(deviceName, volume, loop, file):
+    """
+    Play audio through a specific device with specified volume and looping option.
+
+    Args:
+        deviceName (str): Name of the device ('phone', 'ringer', 'speaker').
+        volume (int): Volume level (0-100).
+        loop (bool): Whether to loop the audio indefinitely.
+        file (str): Path to the audio file.
+    """
+    if deviceName not in DEVICE_MAP:
+        print(f"Error: Unknown device name '{deviceName}'. Choose from {list(DEVICE_MAP.keys())}.")
+        return
+
+    # Set the audio sink
+    sink_name = DEVICE_MAP[deviceName]
+    set_default_sink(sink_name)
+
+    # Initialize pygame mixer
+    pygame.mixer.init()
+    pygame.mixer.music.load(file)
+    pygame.mixer.music.set_volume(volume / 100.0)  # Set volume (0.0 to 1.0)
+
+    # Start playback
+    loops = -1 if loop else 0  # -1 for infinite looping
+    pygame.mixer.music.play(loops=loops)
+    print(f"Playing {file} on {deviceName} ({sink_name}) with volume {volume}%")
+
+    try:
+        while pygame.mixer.music.get_busy():
+            time.sleep(1)  # Keep the program alive while music is playing
+    except KeyboardInterrupt:
+        print("\nStopping playback.")
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
+
+
 class SerialReader(threading.Thread):
     def __init__(self, port, baudrate=115200, timeout=1):
         threading.Thread.__init__(self)
@@ -77,6 +133,8 @@ def reset_pico(pico_port):
     ser.close()
 
 
+
+
 def main():
     state = statecontroller.StateController()
 
@@ -127,21 +185,24 @@ def main():
         nonlocal alarm_active
         if not alarm_active:
             print("Starting alarm on main PC.")
-            # pygame.mixer.init()
-            # pygame.mixer.music.load("./data/danger.mp3")
-            # pygame.mixer.music.set_volume(0.5)
-            # pygame.mixer.music.play(-1)
-            client.publish("reactor/alarm", "start")
+            pygame.mixer.init(channels=1, devicename="SC")
+            pygame.mixer.music.load("./data/danger.mp3")
+            pygame.mixer.music.set_volume(0.2)
+            pygame.mixer.music.play(-1)
+
+            # client.publish("reactor/alarm", "start")
             alarm_active = True
+            # play_through_specific("speaker", 20, True, "./data/danger.mp3")
 
     def stop_alarm():
         nonlocal alarm_active
         if alarm_active:
             print("Stopping alarm on main PC.")
+            alarm_active = False
             # pygame.mixer.music.stop()
             # pygame.mixer.quit()
-            client.publish("reactor/alarm", "stop")
-            alarm_active = False
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
 
     def start_lamp():
         print("Starting alarm on main PC.")
@@ -232,7 +293,9 @@ def main():
             state.set_infoscreen_state("initial_call")
             pygame.mixer.init()
             pygame.mixer.music.load("./data/ring.mp3")
+            pygame.mixer.music.set_volume(1.0)
             pygame.mixer.music.play(-1)
+            # play_through_specific("ringer", 100, True, "./data/ring.mp3")
             print("Waiting for button Raised to be pressed...")
             while state.get_state() == "initial_call":
                 serial_data = serial_reader_1.get_data()
@@ -246,9 +309,11 @@ def main():
             pygame.mixer.music.stop()
             pygame.mixer.quit()
             time.sleep(0.5)
-            pygame.mixer.init(channels=1, devicename="SC")
+            pygame.mixer.init(channels=1, devicename="SC1")
+            pygame.mixer.music.set_volume(1)
             pygame.mixer.music.load("./data/call1.mp3")
             pygame.mixer.music.play()
+            # play_through_specific("phone", 100, True, "./data/call1.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "initial_call_up":
                 serial_data = serial_reader_1.get_data()
@@ -295,9 +360,11 @@ def main():
         elif state.get_state() == "second_call_up":
             state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             time.sleep(0.5)
-            pygame.mixer.init(channels=1, devicename="SC")
+            pygame.mixer.init(channels=1, devicename="SC1")
             pygame.mixer.music.load("./data/call2.mp3")
+            pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play()
+            # play_through_specific("phone", 100, True, "./data/call2.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "second_call_up":
                 serial_data = serial_reader_1.get_data()
