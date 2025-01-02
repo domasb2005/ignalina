@@ -1,21 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href="/static/style.css"/>
-    <link rel="stylesheet" href="../static/style.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Loop</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100dvh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    video {
+      max-height: 100dvh;
+      max-width: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+    }
+
+    h1 {
+      position: absolute;
+      bottom: 50px;
+      width: 100%;
+      text-align: center;
+      font-size: 3vw;
+      color: white;
+      z-index: 2; /* On top of the video */
+      margin: 0;
+      background: rgba(0, 0, 0, 0.5); /* Dimmed background */
+      padding: 10px 0;
+    }
+  </style>
 </head>
 <body>
-    <h1>ijunkite garu stebejimo sistema</h1>
-    <!-- <img class="gif" src="/static/iveskiteDazni.gif"> -->
-    <!-- <video src="/static/iveskiteDazni.mp4" class="video" autoplay loop ></video> -->
-
-    <!-- <h1>Įveskite radijo dažnį į stotelę</h1>
-    <ol>
-        <li>Palaukite, kol stotelė įsijungs.</li>
-        <li>Spauskite <div class="btn s"><div class="smol">MNU</div></div>.</li>
-        <li>Naudodami <div class="btn"><</div> ir <div class="btn">></div>, suraskite <code>RADIO</code> ir spauskite <div class="btn s"><div class="smol">ENT</div></div>.</li>
-        <li>Įveskite ryšio protokole rastą dažnį <code>R:</code> ir <code>T:</code>.</li>
-        <li>Spauskite <div class="btn s"><div class="smol">ENT</div></div>.</li>
-    </ol> -->
+  <video id="background-video" src="/static/ignalina/ausinimo.mp4" autoplay loop muted></video>
+  <h1>Įjunkite aušinimo skysčio stebėjimo sistemą</h1>
 </body>
 </html>

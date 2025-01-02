@@ -18,4 +18,5 @@ from webmodules.admin import blueprint as admin_blueprint
 app.register_blueprint(admin_blueprint, url_prefix='/admin')
 
 if __name__ == '__main__':
+    app.run(debug=True)
     app.run()

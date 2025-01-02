@@ -44,7 +44,7 @@
 </head>
 <body>
   <img id="slideshow-image" src="/static/ignalina/0.jpg" alt="Slide 0">
-  <h1>Press the START button</h1>
+  <h1>Paspauskite START mygtuką</h1>
 
   <script>
     (function() {
@@ -59,6 +59,8 @@
         imageElement.src = `${imageDirectory}/${currentImageIndex}.jpg`;
         imageElement.alt = `Slide ${currentImageIndex}`;
       }
+      imageElement.src = `${imageDirectory}/0.jpg`;
+
 
       // Change image every 5 seconds
       setInterval(updateImage, 5000);

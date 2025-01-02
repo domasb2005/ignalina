@@ -210,6 +210,7 @@ def main():
             client.publish("reactor/counter", "prepare")
             client.publish("pico/servo/control", "prepare")
             stop_lamp()
+            stop_alarm()
 
             if not serial_reader_0.is_alive():
                 serial_reader_0 = SerialReader(button_port)
@@ -324,6 +325,8 @@ def main():
                 serial_data = serial_reader_0.get_data()
                 if is_button_pressed('2', serial_data):
                     print("Button 2 is pressed. Moving on with the rest of the code.")
+                    #send display manage
+                    client.publish("pico/servo/control", "display")
                     start_alarm()
                     state.set_state("steam_connection")
                 time.sleep(0.1)
@@ -347,6 +350,7 @@ def main():
                 if is_button_pressed('4', serial_data):
                     print("Button 4 is pressed. Moving on with the rest of the code.")
                     client.publish("reactor/counter", "go")
+                    state.set_infoscreen_state("control_rods")
                     state.set_state("control_rods")
                 
         
@@ -398,7 +402,7 @@ def main():
                 elif current_percentage > 35:
                     if time_at_six is None:
                         time_at_six = time.time()
-                        state.set_infoscreen_state("wrong_percentage")
+                        # state.set_infoscreen_state("wrong_percentage")
                         print("Starting timer for state 'game_early_end_timeout'.")
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
@@ -419,40 +423,28 @@ def main():
 
             time.sleep(1)  # Prevent tight looping
         
+
         elif state.get_state() == "idle_pump":
-            print("Waiting for button 6 to be pressed...")
             state.set_infoscreen_state("idle_pump")
+            print("Waiting for button 5 to be pressed...")
             while state.get_state() == "idle_pump":
                 serial_data = serial_reader_0.get_data()
-                if is_button_pressed('6', serial_data):
-                    print("Button 6 is pressed. Moving on with the rest of the code.")
+                if is_button_pressed('5', serial_data):
+                    print("Button 5 is pressed. Moving on with the rest of the code.")
                     start_alarm()
                     state.set_state("main_pump")
                 time.sleep(0.1)
         
-        elif state.get_state() == "main_pump": 
-            already_pressed = set()  # Using a set to track which buttons have been pressed
+        elif state.get_state() == "main_pump":
             state.set_infoscreen_state("main_pump")
-            print("Waiting for buttons 7 and 12 to be pressed...")
+            print("Waiting for button 6 to be pressed...")
             while state.get_state() == "main_pump":
                 serial_data = serial_reader_0.get_data()
-                
-                if is_button_pressed('7', serial_data) and '7' not in already_pressed:
-                    print("Button 7 is pressed")
-                    already_pressed.add('7')  # Add button 7 to the set
-                
-                if is_button_pressed('12', serial_data) and '12' not in already_pressed:
-                    print("Button 12 is pressed")
-                    already_pressed.add('12')  # Add button 12 to the set
-                
-                # Check if both buttons have been pressed
-                if '7' in already_pressed and '12' in already_pressed:
-                    print("Both buttons 7 and 12 have been pressed. Changing state to 'waiting'.")
+                if is_button_pressed('6', serial_data):
+                    print("Button 6 is pressed. Moving on with the rest of the code.")
                     stop_alarm()
                     state.set_state("waiting")
-                
                 time.sleep(0.1)
-
 
         elif state.get_state() == "waiting":
             pygame.mixer.quit()
@@ -461,36 +453,6 @@ def main():
             time.sleep(18)
             state.set_state("turbine_connection")
 
-        elif state.get_state() == "turbine_startup":
-            state.set_infoscreen_state("turbine_startup")
-            print("Waiting for message '8' via MQTT...")
-
-            if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
-                # MQTT Client Setup
-                client = mqtt.Client()
-                client.on_connect = on_connect
-                client.on_message = on_message
-
-                connected = False
-                while not connected:
-                    try:
-                        client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
-                        connected = True
-                    except Exception as e:
-                        print(f"Connection failed: {e}. Retrying in 5 seconds...")
-                        time.sleep(5)
-
-                state.mqtt_initialized = True
-
-            client.loop_start()  # Start the MQTT loop to process messages
-
-            def on_message(client, userdata, msg):
-                if msg.topic == "pico/servo/control" and msg.payload.decode() == "8":
-                    print("Message '8' received via MQTT. Moving on with the rest of the code.")
-                    state.set_state("turbine_connection")
-
-            while state.get_state() == "turbine_startup":
-                time.sleep(0.1)
 
 
         elif state.get_state() == "turbine_connection":
@@ -524,17 +486,7 @@ def main():
             while state.get_state() == "turbine_connection":
                 time.sleep(0.1)
         
-        
-        elif state.get_state() == "steam_connection": 
-            state.set_infoscreen_state("steam_connection")
-            print("Waiting for button 10 to be pressed...")
-            while state.get_state() == "steam_connection":
-                serial_data = serial_reader_0.get_data()
-                if is_button_pressed('10', serial_data): 
-                    print("Button 10 is pressed. Moving on with the rest of the code.") 
-                    state.set_state("power_up") 
-                time.sleep(0.1)
-        
+                
         elif state.get_state() == "power_up": 
             state.set_infoscreen_state("power_up")
             if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
@@ -580,7 +532,6 @@ def main():
                 elif current_percentage > 75:
                     if time_at_six is None:
                         time_at_six = time.time()
-                        state.set_infoscreen_state("wrong_percentage")
                         print("Starting timer for state 'game_early_end_timeout'.")
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")

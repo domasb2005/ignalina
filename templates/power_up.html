@@ -1,12 +1,49 @@
-<!DOCTYPE html>
-<html>
+<!DO<!DOCTYPE html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href="/static/style.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Loop</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100dvh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    video {
+      max-height: 100dvh;
+      max-width: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+    }
+
+    h1 {
+      position: absolute;
+      bottom: 50px;
+      width: 100%;
+      text-align: center;
+      font-size: 2.4vw;
+      color: white;
+      z-index: 2; /* On top of the video */
+      margin: 0;
+      background: rgba(0, 0, 0, 0.5); /* Dimmed background */
+      padding: 10px 0;
+    }
+  </style>
 </head>
 <body>
-    
-     <h1>Is leto didinkite reaktoriaus galinguma nuo 36%  iki 75% sukdami svirtele.</h1>
-
-    <!-- <video src="/static/fonetineabecele.mp4" class="video" autoplay loop ></video> -->
+  <video id="background-video" src="/static/ignalina/75.mp4" autoplay loop muted></video>
+  <h1>Svirtele iš lėto padidinkite reaktoriaus galią iki 75%</h1>
 </body>
 </html>

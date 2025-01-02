@@ -1,11 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href="/static/style.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Slideshow</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100dvh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    img {
+      max-height: 100dvh;
+      max-width: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+    }
+
+    h1 {
+      position: absolute;
+      bottom: 50px;
+      width: 100%;
+      text-align: center;
+      font-size: 3vw;
+      color: white;
+      z-index: 2; /* On top of the image */
+      margin: 0;
+      background: rgba(0, 0, 0, 0.5); /* Dimmed background */
+      padding: 10px 0;
+    }
+  </style>
 </head>
 <body>
-    <h1>Viska atlikote teisingai!
-        Reaktoriaus paleidimas baigtas, reaktorius dirba 75% pajegumu.</h1>
-    <!-- <img src="/static/sveikiname.png" class="png"> -->
+  <img id="slideshow-image" src="/static/ignalina/0.jpg" alt="Slide 0">
+  <h1>Viską atlikote teisingai! Reaktorius dirba 75% pajėgumu</h1>
+
+  <script>
+    (function() {
+      const totalImages = 24; // Total number of images (0.jpg to 23.jpg)
+      const imageDirectory = "/static/ignalina"; // Relative path to your directory
+      const imageElement = document.getElementById('slideshow-image');
+      let currentImageIndex = 0;
+
+      // Function to update the image source
+      function updateImage() {
+        currentImageIndex = (currentImageIndex + 1) % totalImages;
+        imageElement.src = `${imageDirectory}/${currentImageIndex}.jpg`;
+        imageElement.alt = `Slide ${currentImageIndex}`;
+      }
+
+      // Immediately show the first image (already done via initial src)
+      imageElement.src = `${imageDirectory}/0.jpg`;
+
+      // Start the slideshow after 5 seconds
+      setInterval(updateImage, 5000);
+    })();
+  </script>
 </body>
 </html>
