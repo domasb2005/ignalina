@@ -28,16 +28,19 @@ def main():
         ser = serial.Serial(arduino_port, baudrate=9600, timeout=1)
         time.sleep(2)  # Allow some time for the connection to initialize
 
-        # Send state numbers from 1 to 13 in a loop
-        state = 1
+        # States to send
+        states = [0, 1, 7]
+        index = 0  # Index for the current state
+
         while True:
+            state = states[index]  # Get the current state to send
             ser.write(f"{state}\n".encode())  # Send the state as a string with a newline
             print(f"Sent state: {state}")  # Print the sent state
             
-            # Cycle through states from 1 to 13
-            state = state + 1 if state < 13 else 1
+            # Rotate the index to the next state
+            index = (index + 1) % len(states)
 
-            time.sleep(1)  # Delay between sends
+            time.sleep(5)  # Delay between sends
 
     except Exception as e:
         print(e)

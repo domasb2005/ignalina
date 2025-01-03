@@ -92,6 +92,7 @@ class SerialReader(threading.Thread):
 
     def clear_data(self):
         """Clears the current serial data and flushes the input buffer."""
+        time.sleep(1)
         self.serial_data = None
         self.ser.reset_input_buffer()
 
@@ -334,6 +335,7 @@ def main():
         
         elif state.get_state() == "initial_call":
             state.set_infoscreen_state("initial_call")
+            serial_reader_0.clear_data()
             pygame.mixer.init()
             pygame.mixer.music.load("./data/ring.mp3")
             pygame.mixer.music.set_volume(1.0)
@@ -341,6 +343,13 @@ def main():
             # play_through_specific("ringer", 100, True, "./data/ring.mp3")
             print("Waiting for button Raised to be pressed...")
             while state.get_state() == "initial_call":
+
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Raised', serial_data):
                     print("Button Raised is pressed. Moving on with the rest of the code.")
@@ -349,6 +358,7 @@ def main():
 
         elif state.get_state() == "initial_call_up":
             state.set_infoscreen_state("initial_call_up")
+            # serial_reader_0.clear_data
             pygame.mixer.music.stop()
             pygame.mixer.quit()
             time.sleep(0.5)
@@ -359,6 +369,13 @@ def main():
             # play_through_specific("phone", 100, True, "./data/call1.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "initial_call_up":
+
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Putdown', serial_data):
                     print("Button Putdown is pressed. Moving on with the rest of the code.")
@@ -367,33 +384,53 @@ def main():
                 time.sleep(0.1)
 
         elif state.get_state() == "dial_up":
-            correct_number = "1124" 
+            correct_number = "1124"
             entered_number = ""
 
             state.set_infoscreen_state("dial_up")
+            # serial_reader_0.clear_data()
             print("Please enter the 4-digit number")
 
             while state.get_state() == "dial_up":
-                serial_data = serial_reader_1.get_data()
-                if serial_data and serial_data.isdigit():
-                    entered_number += serial_data
-                    print(f"Current entered number: {entered_number}")
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
 
-                    if len(entered_number) == 4:
-                        if entered_number == correct_number:
-                            print("Correct number entered!")
-                            state.set_state("second_call_up")
-                        else:
-                            print("Incorrect number. Please try again.")
-                            state.set_infoscreen_state("wrong_number")
-                            entered_number = ""  # Reset entered number for retry
+                serial_data = serial_reader_1.get_data()
+                if serial_data:
+                    if serial_data == "Putdown":
+                        print("Putdown signal received. Exiting digit input loop.")
+                        state.set_state("second_call")
+                        break  # Exit the loop immediately
+                    
+                    if serial_data.isdigit():
+                        entered_number += serial_data
+                        print(f"Current entered number: {entered_number}")
+
+                        if len(entered_number) == 4:
+                            if entered_number == correct_number:
+                                print("Correct number entered!")
+                                state.set_state("second_call_up")
+                            else:
+                                print("Incorrect number. Please try again.")
+                                # state.set_infoscreen_state("wrong_number")
+                                entered_number = ""  # Reset entered number for retry
 
                 time.sleep(0.1)  # Sleep for 100 milliseconds
 
         elif state.get_state() == "second_call":
             state.set_infoscreen_state("dial_up")
+            # serial_reader_0.clear_data()
             print("Waiting for button Raised to be pressed...")
             while state.get_state() == "second_call":
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Raised', serial_data):
                     print("Button Raised is pressed. Moving on with the rest of the code.")
@@ -402,7 +439,7 @@ def main():
 
         elif state.get_state() == "second_call_up":
             state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
-            time.sleep(0.5)
+            # serial_reader_0.clear_data()
             pygame.mixer.init(channels=1, devicename="SC1")
             pygame.mixer.music.load("./data/call2.mp3")
             pygame.mixer.music.set_volume(1)
@@ -410,6 +447,12 @@ def main():
             # play_through_specific("phone", 100, True, "./data/call2.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "second_call_up":
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Putdown', serial_data):
                     print("Button Putdown is pressed. Moving on with the rest of the code.")
@@ -420,7 +463,6 @@ def main():
         elif state.get_state() == "particle_check":
             state.set_infoscreen_state("particle_check")
             serial_reader_0.clear_data()
-            time.sleep(1)
             print("Waiting for button 1 to be pressed...")
             while state.get_state() == "particle_check":
                 serial_data = serial_reader_0.get_data()
@@ -470,6 +512,7 @@ def main():
                     print("Button 4 is pressed. Moving on with the rest of the code.")
                     client.publish("reactor/counter", "go")
                     state.set_infoscreen_state("control_rods")
+                    serial_reader_0.clear_data()
                     state.set_state("control_rods")
                 
         
@@ -496,6 +539,11 @@ def main():
                 state.mqtt_initialized = True
 
             print("Control rods state is active, processing logic...")
+
+            serial_data_0 = serial_reader_0.get_data()
+            if serial_data_0 is not None:
+                print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                state.set_state("game_early_end_timeout")
 
             if current_percentage is not None:
                 if current_percentage < 35:
@@ -540,11 +588,10 @@ def main():
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
-            time.sleep(1)  # Prevent tight looping
+            time.sleep(0.1)  # Prevent tight looping
         
 
         elif state.get_state() == "idle_pump":
-            serial_reader_0.clear_data()
             state.set_infoscreen_state("idle_pump")
             print("Waiting for button 5 to be pressed...")
             while state.get_state() == "idle_pump":
@@ -571,8 +618,28 @@ def main():
             pygame.mixer.quit()
             state.set_infoscreen_state("waiting")
             client.publish("pico/servo/control", "start")
-            time.sleep(18)
-            state.set_state("turbine_connection")
+            serial_reader_0.clear_data()
+            countdown_time = 17  # Total countdown time in seconds
+            start_time = time.time()
+
+            while state.get_state() == "waiting":
+                # Check elapsed time
+                elapsed_time = time.time() - start_time
+                remaining_time = countdown_time - elapsed_time
+
+                if remaining_time <= 0:
+                    print("Countdown complete. Transitioning to turbine_connection.")
+                    state.set_state("turbine_connection")
+                    break
+
+                # Monitor serial_reader_0
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+
+                time.sleep(0.1)  # Sleep for 1 second
 
 
 
@@ -602,14 +669,27 @@ def main():
                 if msg.topic == "pico/servo/control" and msg.payload.decode() == "9":
                     print("Message '9' received via MQTT. Moving on with the rest of the code.")
                     client.publish("reactor/counter", "go")
+                    state.set_infoscreen_state("power_up")
+                    # serial_reader_0.clear_data()
                     state.set_state("power_up")
 
             while state.get_state() == "turbine_connection":
+                serial_data_0 = serial_reader_0.get_data()
+                if serial_data_0 is not None:
+                    print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                    state.set_state("game_early_end_timeout")
+                    break
+                
                 time.sleep(0.1)
         
                 
         elif state.get_state() == "power_up": 
-            state.set_infoscreen_state("power_up")
+
+            serial_data_0 = serial_reader_0.get_data()
+            if serial_data_0 is not None:
+                print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
+                state.set_state("game_early_end_timeout")
+
             if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
                 # MQTT Client Setup
                 client = mqtt.Client()
@@ -676,11 +756,13 @@ def main():
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
-            time.sleep(1)  # Prevent tight looping
+            time.sleep(0.1)  # Prevent tight looping
 
 
         elif state.get_state() == "game_early_end_timeout":
             state.set_infoscreen_state("game_early_end_timeout")
+            pygame.mixer.quit()
+
             start_alarm()
             time.sleep(10)
             stop_alarm()
