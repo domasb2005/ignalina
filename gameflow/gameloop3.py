@@ -10,6 +10,63 @@ import pygame
 import subprocess
 import time
 
+
+import serial
+import time
+import pyudev
+
+# Global variable to hold the serial connection
+led_device_serial = None
+
+def find_led_device_port(target_serial="12648509806167176500"):
+    """
+    Finds the device port for the Arduino with the specified serial number.
+    
+    Args:
+        target_serial (str): The serial number of the target Arduino.
+    
+    Returns:
+        str: The device node (e.g., /dev/ttyACM0).
+    
+    Raises:
+        Exception: If the device is not found.
+    """
+    context = pyudev.Context()
+    for device in context.list_devices(subsystem='tty'):
+        serial = device.get('ID_SERIAL_SHORT')
+        dev_node = device.device_node
+        if serial == target_serial:
+            print(f"Found LED device: Serial={serial}, Node={dev_node}")
+            return dev_node
+    raise Exception("LED device with specified serial number not found.")
+
+def sendToLedDevice(state):
+    """
+    Sends an integer to the LED device over UART.
+    
+    Args:
+        state (int): The integer to send to the LED device.
+    """
+    global led_device_serial
+    try:
+        # Initialize the serial connection if it's not already open
+        if led_device_serial is None or not led_device_serial.is_open:
+            led_device_port = find_led_device_port()
+            led_device_serial = serial.Serial(led_device_port, baudrate=9600, timeout=1)
+            time.sleep(2)  # Allow some time for the connection to initialize
+            print(f"Serial connection established on {led_device_port}")
+
+        # Send the state to the LED device
+        led_device_serial.write(f"{state}\n".encode())
+        print(f"Sent state to LED device: {state}")
+    except Exception as e:
+        print(f"Error sending to LED device: {e}")
+    finally:
+        # Optional: Close the serial connection if you don't want to keep it open
+        pass
+
+
+
 # Mapping device names to indices
 # DEVICE_MAP = {
 #     "phone": "alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output",
@@ -232,6 +289,7 @@ def main():
             pygame.mixer.music.load("./data/danger.mp3")
             pygame.mixer.music.set_volume(0.2)
             pygame.mixer.music.play(-1)
+            sendToLedDevice(-1)
 
             # client.publish("reactor/alarm", "start")
             alarm_active = True
@@ -316,6 +374,8 @@ def main():
             client.publish("pico/servo/control", "prepare")
             stop_lamp()
             stop_alarm()
+            sendToLedDevice(0)
+
 
             if not serial_reader_0.is_alive():
                 serial_reader_0 = SerialReader(button_port)
@@ -334,6 +394,7 @@ def main():
                 time.sleep(0.1)
         
         elif state.get_state() == "initial_call":
+            sendToLedDevice(1)
             state.set_infoscreen_state("initial_call")
             serial_reader_0.clear_data()
             pygame.mixer.init()
@@ -361,10 +422,10 @@ def main():
             # serial_reader_0.clear_data
             pygame.mixer.music.stop()
             pygame.mixer.quit()
-            time.sleep(0.5)
+            time.sleep(1.5)
             pygame.mixer.init(channels=1, devicename="SC1")
             pygame.mixer.music.set_volume(1)
-            pygame.mixer.music.load("./data/call1.mp3")
+            pygame.mixer.music.load("./data/voiceFirst.mp3")
             pygame.mixer.music.play()
             # play_through_specific("phone", 100, True, "./data/call1.mp3")
             print("Waiting for button Putdown to be pressed...")
@@ -441,7 +502,7 @@ def main():
             state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             # serial_reader_0.clear_data()
             pygame.mixer.init(channels=1, devicename="SC1")
-            pygame.mixer.music.load("./data/call2.mp3")
+            pygame.mixer.music.load("./data/voiceSecond.mp3")
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play()
             # play_through_specific("phone", 100, True, "./data/call2.mp3")
@@ -499,6 +560,7 @@ def main():
                 if is_button_pressed('3', serial_data):
                     print("Button 3 is pressed. Moving on with the rest of the code.")
                     stop_alarm()
+                    sendToLedDevice(1)
                     state.set_state("condenser")
                 time.sleep(0.1)
         
@@ -549,6 +611,7 @@ def main():
                 if current_percentage < 35:
                     if alarm_active:
                         stop_alarm()
+                        sendToLedDevice(1)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
@@ -556,6 +619,7 @@ def main():
                     if time_at_five is None:
                         time_at_five = time.time()
                         stop_alarm()
+                        sendToLedDevice(1)
                         print("Starting timer for state 'waiting'.")
                     elif time.time() - time_at_five >= 3:
                         
@@ -563,6 +627,7 @@ def main():
                         print("Message has been 5 for 3 consecutive seconds. Changing state to 'waiting'.")
                         state.set_state("idle_pump")
                         stop_alarm()
+                        sendToLedDevice(1)
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
@@ -574,6 +639,7 @@ def main():
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
                         stop_alarm()
+                        sendToLedDevice(1)
                         client.publish("reactor/counter", "prepare")
                         state.set_state("game_early_end_timeout")
                         time_at_six = None
@@ -581,10 +647,12 @@ def main():
 
                     if not alarm_active and current_percentage is not None:
                         start_alarm()
+                        # sendToLedDevice(-1)
 
                 else:
                     if alarm_active:
                         stop_alarm()
+                        sendToLedDevice(1)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
@@ -599,6 +667,7 @@ def main():
                 if is_button_pressed('5', serial_data):
                     print("Button 5 is pressed. Moving on with the rest of the code.")
                     start_alarm()
+                    # sendToLedDevice(-1)
                     state.set_state("main_pump")
                 time.sleep(0.1)
         
@@ -611,6 +680,7 @@ def main():
                 if is_button_pressed('6', serial_data):
                     print("Button 6 is pressed. Moving on with the rest of the code.")
                     stop_alarm()
+                    sendToLedDevice(7)
                     state.set_state("waiting")
                 time.sleep(0.1)
 
@@ -715,6 +785,7 @@ def main():
                 if current_percentage < 75:
                     if alarm_active:
                         stop_alarm()
+                        sendToLedDevice(7)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
@@ -727,6 +798,7 @@ def main():
                         client.publish("reactor/counter", "lock50")
                         state.set_state("game_end")
                         stop_alarm()
+                        sendToLedDevice(7)
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
@@ -753,6 +825,7 @@ def main():
                 else:
                     if alarm_active:
                         stop_alarm()
+                        sendToLedDevice(7)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
@@ -766,6 +839,7 @@ def main():
             start_alarm()
             time.sleep(10)
             stop_alarm()
+            sendToLedDevice(7)
             serial_reader_0.stop()
             serial_reader_1.stop()
             time.sleep(10)
@@ -774,6 +848,7 @@ def main():
         
         elif state.get_state() == "game_end": 
             state.set_infoscreen_state("game_end")
+            sendToLedDevice(7)
             serial_reader_0.stop()
             serial_reader_1.stop()
             time.sleep(20)
