@@ -542,6 +542,7 @@ def main():
         elif state.get_state() == "particle_check":
             state.set_infoscreen_state("particle_check")
             serial_reader_0.clear_data()
+            time.sleep(1)
             print("Waiting for button 1 to be pressed...")
             while state.get_state() == "particle_check":
                 serial_data = serial_reader_0.get_data()
@@ -558,6 +559,7 @@ def main():
         elif state.get_state() == "steam_monitoring":
             print("Waiting for button 2 to be pressed...")
             serial_reader_0.clear_data()
+            time.sleep(1)
             state.set_infoscreen_state("steam_monitoring")
             while state.get_state() == "steam_monitoring":
                 serial_data = serial_reader_0.get_data()
@@ -571,6 +573,7 @@ def main():
         
         elif state.get_state() == "steam_connection":
             serial_reader_0.clear_data()
+            time.sleep(1)
             print("Waiting for button 3 to be pressed...")
             state.set_infoscreen_state("steam_connection")
             while state.get_state() == "steam_connection":
@@ -584,6 +587,7 @@ def main():
         
         elif state.get_state() == "condenser":
             serial_reader_0.clear_data()
+            time.sleep(1)
             state.set_infoscreen_state("condenser")
             print("Waiting for button 4 to be pressed...")
             while state.get_state() == "condenser":
@@ -593,6 +597,7 @@ def main():
                     client.publish("reactor/counter", "go")
                     state.set_infoscreen_state("control_rods")
                     serial_reader_0.clear_data()
+                    time.sleep(1)
                     state.set_state("control_rods")
                 
         
@@ -715,6 +720,7 @@ def main():
         
         elif state.get_state() == "main_pump":
             serial_reader_0.clear_data()
+            time.sleep(1)
             state.set_infoscreen_state("main_pump")
             print("Waiting for button 6 to be pressed...")
             while state.get_state() == "main_pump":
@@ -731,6 +737,7 @@ def main():
             state.set_infoscreen_state("waiting")
             client.publish("pico/servo/control", "start")
             serial_reader_0.clear_data()
+            time.sleep(1)
             countdown_time = 17  # Total countdown time in seconds
             start_time = time.time()
 
