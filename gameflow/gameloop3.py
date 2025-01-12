@@ -245,8 +245,10 @@ def main():
     time_at_five = None
     time_at_six = None
     time_above_six = None
+    buffer_timer_start = None
     alarm_active = False  # Track the state of the alarm
     current_percentage = None
+    current_buffer_value = None
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
@@ -258,12 +260,21 @@ def main():
 
     def on_message(client, userdata, msg):
         nonlocal current_percentage
+        nonlocal current_buffer_value
         
         # Check the topic to decide the action
         if msg.topic == "reactor/power_percentage":
             try:
                 current_percentage = int(msg.payload.decode().strip())
                 print(f"Received reactor power percentage: {current_percentage}%")
+                # Handle the reactor power percentage as needed
+            except Exception as e:
+                print(f"Error decoding message: {e}")
+
+        elif msg.topic == "reactor/buffer_value":
+            try:
+                current_buffer_value = int(msg.payload.decode().strip())
+                print(f"Received reactor buffer value: {current_buffer_value}%")
                 # Handle the reactor power percentage as needed
             except Exception as e:
                 print(f"Error decoding message: {e}")
@@ -300,14 +311,10 @@ def main():
         if alarm_active:
             print("Stopping alarm on main PC.")
             alarm_active = False
-            # pygame.mixer.music.stop()
-            # pygame.mixer.quit()
-            pygame.mixer.music.stop()
             pygame.mixer.quit()
 
 
     def start_lamp():
-        print("Starting alarm on main PC.")
         # pygame.mixer.init()
         # pygame.mixer.music.load("./data/danger.mp3")
         # pygame.mixer.music.set_volume(0.5)
@@ -401,6 +408,7 @@ def main():
             pygame.mixer.music.load("./data/ring.mp3")
             pygame.mixer.music.set_volume(1.0)
             pygame.mixer.music.play(-1)
+            alarm_active = True
             # play_through_specific("ringer", 100, True, "./data/ring.mp3")
             print("Waiting for button Raised to be pressed...")
             while state.get_state() == "initial_call":
@@ -418,7 +426,6 @@ def main():
                 time.sleep(0.1)
 
         elif state.get_state() == "initial_call_up":
-            state.set_infoscreen_state("initial_call_up")
             # serial_reader_0.clear_data
             pygame.mixer.music.stop()
             pygame.mixer.quit()
@@ -427,10 +434,16 @@ def main():
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.load("./data/voiceFirst.mp3")
             pygame.mixer.music.play()
+            alarm_active = True
+
+                            # state.set_infoscreen_state("initial_call_up") #how can i set this only when the sound file has been finished playing?
+
             # play_through_specific("phone", 100, True, "./data/call1.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "initial_call_up":
-
+                if not pygame.mixer.music.get_busy():
+                    state.set_infoscreen_state("initial_call_up")
+                
                 serial_data_0 = serial_reader_0.get_data()
                 if serial_data_0 is not None:
                     print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
@@ -440,7 +453,7 @@ def main():
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Putdown', serial_data):
                     print("Button Putdown is pressed. Moving on with the rest of the code.")
-                    pygame.mixer.quit()
+                    alarm_stop()
                     state.set_state("second_call")
                 time.sleep(0.1)
 
@@ -499,15 +512,20 @@ def main():
                 time.sleep(0.1)
 
         elif state.get_state() == "second_call_up":
-            state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
+            # state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             # serial_reader_0.clear_data()
             pygame.mixer.init(channels=1, devicename="SC1")
             pygame.mixer.music.load("./data/voiceSecond.mp3")
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play()
+            alarm_active = True
             # play_through_specific("phone", 100, True, "./data/call2.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "second_call_up":
+
+                if not pygame.mixer.music.get_busy():
+                    state.set_infoscreen_state("initial_call_up")
+
                 serial_data_0 = serial_reader_0.get_data()
                 if serial_data_0 is not None:
                     print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
@@ -517,7 +535,7 @@ def main():
                 serial_data = serial_reader_1.get_data()
                 if is_button_pressed('Putdown', serial_data):
                     print("Button Putdown is pressed. Moving on with the rest of the code.")
-                    pygame.mixer.quit()
+                    alarm_stop()
                     state.set_state("particle_check")
                 time.sleep(0.1)
         
@@ -608,14 +626,14 @@ def main():
                 state.set_state("game_early_end_timeout")
 
             if current_percentage is not None:
-                if current_percentage < 35:
+                if current_percentage < 75:
                     if alarm_active:
                         stop_alarm()
                         sendToLedDevice(1)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage == 35:
+                elif current_percentage == 75:
                     if time_at_five is None:
                         time_at_five = time.time()
                         stop_alarm()
@@ -631,15 +649,15 @@ def main():
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage > 35:
+                elif current_percentage > 75:
                     if time_at_six is None:
                         time_at_six = time.time()
                         # state.set_infoscreen_state("wrong_percentage")
                         print("Starting timer for state 'game_early_end_timeout'.")
                     elif time.time() - time_at_six >= 10:
                         print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
-                        stop_alarm()
-                        sendToLedDevice(1)
+                        # stop_alarm()
+                        # sendToLedDevice(1)
                         client.publish("reactor/counter", "prepare")
                         state.set_state("game_early_end_timeout")
                         time_at_six = None
@@ -655,6 +673,30 @@ def main():
                         sendToLedDevice(1)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
+
+            if current_buffer_value is not None:
+                    if abs(current_buffer_value) > 45:
+                        if buffer_timer_start is None:
+                            buffer_timer_start = time.time()
+                            print("Buffer value exceeded threshold. Starting 6-second timer.")
+                            if not alarm_active:
+                                start_alarm()
+                                alarm_active = True
+
+                        elif time.time() - buffer_timer_start >= 6:
+                            print("Buffer value remained above threshold for 6 seconds. Transitioning to game_early_end_timeout.")
+                            # stop_alarm()
+                            # sendToLedDevice(1)
+                            state.set_state("game_early_end_timeout")
+                            break
+                    else:
+                        if buffer_timer_start is not None:
+                            print("Buffer value fell back below threshold. Resetting timer.")
+                            buffer_timer_start = None
+                        if alarm_active:
+                            stop_alarm()
+                            alarm_active = False
+
 
             time.sleep(0.1)  # Prevent tight looping
         
@@ -754,6 +796,7 @@ def main():
         
                 
         elif state.get_state() == "power_up": 
+            state.set_infoscreen_state("power_up")
 
             serial_data_0 = serial_reader_0.get_data()
             if serial_data_0 is not None:
@@ -782,14 +825,14 @@ def main():
 
             print("Control rods state is active, processing logic...")
             if current_percentage is not None:
-                if current_percentage < 75:
+                if current_percentage < 95:
                     if alarm_active:
                         stop_alarm()
                         sendToLedDevice(7)
                     time_at_five = time_at_six = time_above_six = None
                     current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage == 75:
+                elif current_percentage == 95:
                     if time_at_five is None:
                         time_at_five = time.time()
                         print("Starting timer for state 'game_end'.")
@@ -802,7 +845,7 @@ def main():
                         time_at_five = None
                         current_percentage = None  # Reset current_percentage after handling
 
-                elif current_percentage > 75:
+                elif current_percentage > 95:
                     if time_at_six is None:
                         time_at_six = time.time()
                         print("Starting timer for state 'game_early_end_timeout'.")
@@ -834,15 +877,14 @@ def main():
 
         elif state.get_state() == "game_early_end_timeout":
             state.set_infoscreen_state("game_early_end_timeout")
-            pygame.mixer.quit()
-
+            stop_alarm()
+            client.publish("reactor/counter", "prepare")
             start_alarm()
             time.sleep(10)
             stop_alarm()
             sendToLedDevice(7)
             serial_reader_0.stop()
             serial_reader_1.stop()
-            time.sleep(10)
             state.set_state("idle")
 
         

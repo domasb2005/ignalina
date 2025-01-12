@@ -8,29 +8,29 @@ from pico_i2c_lcd import I2cLcd
 from large_number_display import LargeNumberDisplay
 
 # Wi-Fi credentials
-SSID = "Muziejus(Unifi)"
+SSID = "Muziejus(Unifi2)"
 PASSWORD = "Muziejus2018"
 
 # MQTT settings
 BROKER = "192.168.4.142"
 MQTT_TOPIC_SERVO = b"pico/servo/control"
 
+
 # Define the GPIO pins for each button with pull-up resistors
 buttons = {
-    '0': Pin(15, Pin.IN, Pin.PULL_UP),
-    '1': Pin(14, Pin.IN, Pin.PULL_UP),
-    '2': Pin(13, Pin.IN, Pin.PULL_UP),
-    '3': Pin(12, Pin.IN, Pin.PULL_UP),
-    '4': Pin(11, Pin.IN, Pin.PULL_UP),
-    '5': Pin(10, Pin.IN, Pin.PULL_UP),
-    '6': Pin(9, Pin.IN, Pin.PULL_UP),
-    '7': Pin(8, Pin.IN, Pin.PULL_UP),
-    '8': Pin(7, Pin.IN, Pin.PULL_UP),
-    '9': Pin(6, Pin.IN, Pin.PULL_UP),
-    '10': Pin(5, Pin.IN, Pin.PULL_UP),
-    '11': Pin(4, Pin.IN, Pin.PULL_UP),
-    '12': Pin(2, Pin.IN, Pin.PULL_UP)
+    '0': Pin(11, Pin.IN, Pin.PULL_UP),
+    '1': Pin(9, Pin.IN, Pin.PULL_UP),
+    '2': Pin(2, Pin.IN, Pin.PULL_UP),
+    '3': Pin(4, Pin.IN, Pin.PULL_UP),
+    '4': Pin(5, Pin.IN, Pin.PULL_UP),
+    '5': Pin(6, Pin.IN, Pin.PULL_UP),
+    '6': Pin(7, Pin.IN, Pin.PULL_UP),
+    '8': Pin(8, Pin.IN, Pin.PULL_UP),
+    '9': Pin(12, Pin.IN, Pin.PULL_UP)
+
+
 }
+
 
 # Define PWM pins for the servos
 servo_pins = [PWM(Pin(16)), PWM(Pin(17)), PWM(Pin(18))]
@@ -46,17 +46,23 @@ def set_servo_angle(servo, angle):
     servo.duty_u16(duty)
 
 def prepare_servos():
-    initial_angle = 150
-    print("Preparing servos to 150 degrees...")
+    initial_angle = 120
+    ##print("Preparing servos to 150 degrees...")
     for servo in servo_pins:
         set_servo_angle(servo, initial_angle)
 
+def clear_speed_display():
+    lcd.move_to(2, 1)  # Starting position of the number
+    lcd.putstr(" " * 16)  # Clear the middle two lines where the number is displayed
+    lcd.move_to(2, 2)
+    lcd.putstr(" " * 16)
+
 def move_servos():
     start_time = utime.ticks_ms()  # Use utime.ticks_ms() for MicroPython
-    initial_angle = 150
-    final_angle = 0
-    duration_fast = 10   # Duration for the servo on pin 16
-    duration_slow = 16  # Duration for the servos on pins 17 and 18
+    initial_angle = 120
+    final_angle = 20
+    duration_fast = 13   # Duration for the servo on pin 16
+    duration_slow = 19  # Duration for the servos on pins 17 and 18
     steps = 100  # Number of steps for smooth movement
 
     while True:
@@ -77,8 +83,8 @@ def move_servos():
         if elapsed_time > duration_slow:
             break
 
-    print("Servos movement completed.")
-    manage_speed_display()  # Start updating the speed display after servos complete
+    ##print("Servos movement completed.")
+    start_servo_game()  # Start the servo game after reaching 3600
 
 # Initialize UART
 uart = UART(0, baudrate=115200)
@@ -90,19 +96,21 @@ def connect_wifi():
     wlan.connect(SSID, PASSWORD)
     while not wlan.isconnected():
         sleep(1)
-    print("Connected to Wi-Fi")
+    ##print("Connected to Wi-Fi")
 
 # MQTT message callback
 def on_message(topic, msg):
     global speed  # Access the global speed variable
-    print(f"Received message: {msg}")
+    ##print(f"Received message: {msg}")
     if topic == MQTT_TOPIC_SERVO:
         if msg == b'prepare':
-            speed = 0  # Reset speed to 0
-            update_speed_display(speed)  # Update the display to show speed as 0
+            clear_speed_display()
             prepare_servos()
         elif msg == b'start':
             move_servos()
+        elif msg == b'display':
+            #print("Managing speed display via MQTT")
+            manage_speed_display()
 
 # Initialize MQTT client
 client = MQTTClient("pico_client", BROKER)
@@ -127,13 +135,11 @@ button3 = Pin(21, Pin.IN, Pin.PULL_UP)
 # Display static text on the first and last lines
 lcd.clear()
 lcd.move_to(0, 0)  # Move to the top-left corner of the screen
-lcd.putstr("  Turbinos greitis")  # Display the text on the first line
+# lcd.putstr(" Garų priemaišos")  # Display the text on the first line
 
-lcd.move_to(0, 3)  # Move to the beginning of the fourth line
-lcd.putstr("apsisukimai per min.")  # Display the text on the fourth line
 
 # Initialize the speed variable
-speed = 0
+speed = 10
 
 # Function to update the speed display
 def update_speed_display(speed):
@@ -149,63 +155,48 @@ def update_speed_display(speed):
     if speed == 0:
         large_number_display.print_large_number(speed_str, 8, 1)  # Display the large number starting at column 8
     else:
-        large_number_display.print_large_number(speed_str, 2, 1)  # Display the large number starting at column 2
+        large_number_display.print_large_number(speed_str, 6, 1)  # Display the large number starting at column 2
 
-# Display the initial speed of 0
-update_speed_display(speed)
 
 # Function to manage speed display based on button inputs with timeout
 def manage_speed_display():
+    
+    lcd.move_to(0, 3)  # Move to the beginning of the fourth line
+# lcd.putstr("apsisukimai per min.")  # Display the text on the fourth line
+    lcd.putstr(" Koncentracija ug/L")  # Display the text on the fourth line
+
     global speed
-    timeout = 120  # 2 minutes timeout
-    start_time = utime.ticks_ms()  # Start the timeout timer using utime
+    speed = 10  # Start speed
+    increments = 7  # Number of updates
+    final_speed = 50  # The final speed value
+    total_duration = 7  # Total duration in seconds
+    update_interval = total_duration / increments  # Time interval between updates
 
-    while True:
-        elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time) / 1000
+    start_time = utime.ticks_ms()  # Start time in milliseconds
 
-        if elapsed_time > timeout:
-            print("Timeout reached. Resetting speed and stopping servos.")
-            speed = 0
-            update_speed_display(speed)
-            prepare_servos()
-            return  # Exit the function and return to the main loop
+    for i in range(increments):
+        # Calculate elapsed time since the last update
+        elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time)
 
-        # Check if button 1 is pressed and increase speed until 1200
-        if button1.value() == 0 and speed < 1200:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 1200:
-                speed = 1200
-            update_speed_display(speed)
-            sleep(0.1)
+        # Wait for 1 second display delay
+        while elapsed_time < (i + 1) * update_interval * 1000:
+            elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time)
 
-        # Check if button 2 is pressed and increase speed until 2400
-        elif button2.value() == 0 and speed < 2400 and speed >= 1200:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 2400:
-                speed = 2400
-            update_speed_display(speed)
-            sleep(0.1)
+        # Increase speed by a random interval between 1 and 10
+        speed += random.randint(1, 10)
+        if i == increments - 1:  # On the last update, set speed to final value
+            speed = final_speed
+        elif speed > final_speed:
+            speed = final_speed  # Ensure speed does not exceed 990 before final update
 
-        # Check if button 3 is pressed and increase speed until 3600
-        elif button3.value() == 0 and speed < 3600 and speed >= 2400:
-            increment = random.randint(50, 100)
-            speed += increment
-            if speed > 3600:
-                speed = 3600
-            update_speed_display(speed)
-            sleep(0.1)
+        # Update the display with the new speed
+        update_speed_display(speed)
+        #print(f"Updated speed: {speed}")
 
-        # Check if speed has reached 3600 to start the servo game
-        if speed == 3600:
-            print("Speed 3600 reached. Starting servo game...")
-            client.publish(MQTT_TOPIC_SERVO, b"8")  # Publish '8' to the MQTT topic
-            start_servo_game()  # Start the servo game after reaching 3600
-            break  # Exit the loop once the game starts
+        # Wait for 1 second display delay after each update
+        sleep(1)
 
-        # Small delay to prevent excessive CPU usage
-        sleep(0.05)
+    #print("Final speed reached: 990")
 
 # Function to start the servo game with timeout
 def start_servo_game():
@@ -222,12 +213,11 @@ def start_servo_game():
         servo.duty_u16(duty)
 
     # Initialize button on GPIO 22 with pull-up resistor
-    game_button = Pin(22, Pin.IN, Pin.PULL_UP)
+    game_button = Pin(10, Pin.IN, Pin.PULL_UP)
 
     # Start the servo at 90 degrees
     current_angle = 90
     set_servo_game_angle(servo_game, current_angle)
-    print(f"Starting at 90 degrees")
 
     # Set the speed of rotation
     speed = 2  # Adjust this value to control the speed (higher = faster)
@@ -242,7 +232,6 @@ def start_servo_game():
         while True:  # Run indefinitely
             elapsed_time = utime.ticks_diff(utime.ticks_ms(), start_time) / 1000
             if elapsed_time > timeout:
-                print("Timeout reached during servo game. Stopping and resetting.")
                 speed = 0
                 update_speed_display(speed)
                 prepare_servos()
@@ -260,32 +249,30 @@ def start_servo_game():
                 direction = 1
             
             set_servo_game_angle(servo_game, current_angle)
-            print(f"Current angle: {current_angle} degrees")
+            #print(f"Current angle: {current_angle} degrees")
             
             # Check if the angle is within 90 ± 10 degrees and the button is pressed
-            if 80 <= current_angle <= 100 and game_button.value() == 0:
-                print("Button pressed within 90 ± 10 degrees. Stopping...")
+            if 70 <= current_angle <= 110 and game_button.value() == 0:
                 client.publish(MQTT_TOPIC_SERVO, b"9")  # Publish '9' to the MQTT topic
                 while game_button.value() == 0:  # Wait here until the button is released
                     sleep(0.1)
                 break  # Exit the loop after stopping completely
             elif game_button.value() == 0:
-                print("Button pressed outside 90 ± 10 degrees. Pausing for 2 seconds...")
                 sleep(2)  # Pause for 2 seconds if outside the range
             
             sleep(0.01)  # Adjust this delay for smoother/faster rotation
     finally:
-        print(f"Stopped at {current_angle} degrees")
+        pass
 
-# Check buttons and MQTT messages
+ 
+
 def check_buttons():
     while True:
         # Check button states and publish over UART
         pressed_buttons = []
         for key, button in buttons.items():
             if button.value() == 0:  # Button is pressed (active low)
-                pressed_buttons.append(key)
-        
+                pressed_buttons.append(key)        
         if pressed_buttons:
             pressed = ', '.join(pressed_buttons)
             print(pressed)
@@ -294,9 +281,10 @@ def check_buttons():
         # Check for MQTT messages
         client.check_msg()
         
-        sleep(0.5)  # Adjust delay to balance responsiveness and CPU usage
+        sleep(0.1)  # Adjust delay to balance responsiveness and CPU usage
 
-print("Starting button input check and MQTT listening...")
+##print("Starting button input check and MQTT listening...")
+
 
 # Connect to Wi-Fi
 connect_wifi()
@@ -305,5 +293,7 @@ connect_wifi()
 client.connect()
 client.subscribe(MQTT_TOPIC_SERVO)
 
+
 # Start checking buttons and listening for MQTT messages
 check_buttons()
+
