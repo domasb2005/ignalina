@@ -29,7 +29,7 @@ class StateController:
                                   "steam_monitoring": 60,
                                   
                                   "backup_pumps": 60,
-                                  "power_up": 60,
+                                  "power_up": 180,
                                   "game_end": -1}
 
         self._infoscreen_state = "idle"
