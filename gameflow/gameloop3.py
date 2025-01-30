@@ -457,7 +457,7 @@ def main():
             time.sleep(1.5)
             pygame.mixer.init(channels=1, devicename="SC1")
             pygame.mixer.music.set_volume(1)
-            pygame.mixer.music.load("./data/voiceFirst.mp3")
+            pygame.mixer.music.load("./data/pirmas.mp3")
             pygame.mixer.music.play()
             alarm_active = True
 
@@ -540,7 +540,7 @@ def main():
             # state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             # serial_reader_0.clear_data()
             pygame.mixer.init(channels=1, devicename="SC1")
-            pygame.mixer.music.load("./data/voiceSecond.mp3")
+            pygame.mixer.music.load("./data/antras.mp3")
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play()
             alarm_active = True
