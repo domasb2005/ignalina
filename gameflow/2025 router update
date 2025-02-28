@@ -1,0 +1,4 @@
+Muziejus(Unifi2)'s password: Muziejus2018
+ampy --port /dev/ttyACM3 put my_script.py /main.py
+ampy --port /dev/ttyACM3 get /main.py
+100.88.253.102 host address
