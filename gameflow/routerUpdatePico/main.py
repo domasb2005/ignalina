@@ -12,7 +12,7 @@ SSID = "Muziejus(Unifi2)"
 PASSWORD = "Muziejus2018"
 
 # MQTT settings
-BROKER = "192.168.0.240"
+BROKER = "192.168.0.240" # after drive change ip changed to 192.168.0.252
 MQTT_TOPIC_SERVO = b"pico/servo/control"
 
 

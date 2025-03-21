@@ -298,7 +298,7 @@ def main():
         nonlocal alarm_active
         if not alarm_active:
             print("Starting alarm on main PC.")
-            pygame.mixer.init(channels=1, devicename="SC")
+            pygame.mixer.init(channels=1, devicename="USB Audio Device Analog Stereo")
             pygame.mixer.music.load("./data/danger.mp3")
             pygame.mixer.music.set_volume(0.2)
             pygame.mixer.music.play(-1)
@@ -455,7 +455,7 @@ def main():
             pygame.mixer.music.stop()
             pygame.mixer.quit()
             time.sleep(1.5)
-            pygame.mixer.init(channels=1, devicename="SC1")
+            pygame.mixer.init(channels=1, devicename="PCM2902 Audio Codec Analog Stereo")
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.load("./data/pirmas.mp3")
             pygame.mixer.music.play()
@@ -539,7 +539,7 @@ def main():
         elif state.get_state() == "second_call_up":
             # state.set_infoscreen_state("initial_call_up")  # Set the infoscreen state to initial_call_up
             # serial_reader_0.clear_data()
-            pygame.mixer.init(channels=1, devicename="SC1")
+            pygame.mixer.init(channels=1, devicename="PCM2902 Audio Codec Analog Stereo")
             pygame.mixer.music.load("./data/antras.mp3")
             pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play()
