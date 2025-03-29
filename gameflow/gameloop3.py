@@ -49,7 +49,6 @@ def sendToLedDevice(state):
     """
     global led_device_serial
     try:
-        # Initialize the serial connection if it's not already open
         if led_device_serial is None or not led_device_serial.is_open:
             led_device_port = find_led_device_port()
             led_device_serial = serial.Serial(led_device_port, baudrate=9600, timeout=1)
@@ -62,63 +61,8 @@ def sendToLedDevice(state):
     except Exception as e:
         print(f"Error sending to LED device: {e}")
     finally:
-        # Optional: Close the serial connection if you don't want to keep it open
         pass
 
-
-
-# Mapping device names to indices
-# DEVICE_MAP = {
-#     "phone": "alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output",
-#     "ringer": "alsa_output.pci-0000_00_1b.0.analog-stereo",
-#     "speaker": "alsa_output.usb-GeneralPlus_USB_Audio_Device-00.analog-stereo"
-# }
-
-
-
-# def set_default_sink(sink_name):
-#     """Set the default audio sink (output device)."""
-#     try:
-#         subprocess.run(["pactl", "set-default-sink", sink_name], check=True)
-#         print(f"Default sink set to: {sink_name}")
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error setting default sink: {e}")
-
-# def play_through_specific(deviceName, volume, loop, file):
-#     """
-#     Play audio through a specific device with specified volume and looping option.
-
-#     Args:
-#         deviceName (str): Name of the device ('phone', 'ringer', 'speaker').
-#         volume (int): Volume level (0-100).
-#         loop (bool): Whether to loop the audio indefinitely.
-#         file (str): Path to the audio file.
-#     """
-#     if deviceName not in DEVICE_MAP:
-#         print(f"Error: Unknown device name '{deviceName}'. Choose from {list(DEVICE_MAP.keys())}.")
-#         return
-
-#     # Set the audio sink
-#     sink_name = DEVICE_MAP[deviceName]
-#     set_default_sink(sink_name)
-
-#     # Initialize pygame mixer
-#     pygame.mixer.init()
-#     pygame.mixer.music.load(file)
-#     pygame.mixer.music.set_volume(volume / 100.0)  # Set volume (0.0 to 1.0)
-
-#     # Start playback
-#     loops = -1 if loop else 0  # -1 for infinite looping
-#     pygame.mixer.music.play(loops=loops)
-#     print(f"Playing {file} on {deviceName} ({sink_name}) with volume {volume}%")
-
-#     try:
-#         while pygame.mixer.music.get_busy():
-#             time.sleep(1)  # Keep the program alive while music is playing
-#     except KeyboardInterrupt:
-#         print("\nStopping playback.")
-#         pygame.mixer.music.stop()
-#         pygame.mixer.quit()
 
 
 class SerialReader(threading.Thread):
@@ -153,9 +97,6 @@ class SerialReader(threading.Thread):
         self.serial_data = None
         self.ser.reset_input_buffer()
 
-
-# def is_button_pressed(button, serial_data):
-#     return serial_data and button in serial_data.split(', ')
 
 def is_button_pressed(button, serial_data):
 
@@ -315,30 +256,6 @@ def main():
             alarm_active = False
             pygame.mixer.quit()
 
-    # def start_alarm_buffer():
-    # """
-    # Starts the alarm for buffer-related conditions.
-    # """
-    # global alarm_active_buffer  # Use the same `alarm_active` flag for simplicity
-    # if not alarm_active_buffer:
-    #     print("Starting buffer alarm.")
-    #     pygame.mixer.init(channels=1, devicename="SC")
-    #     pygame.mixer.music.load("./data/buffer_danger.mp3")  # Use a specific sound file for buffer
-    #     pygame.mixer.music.set_volume(0.2)
-    #     pygame.mixer.music.play(-1)
-    #     alarm_active_buffer = True
-
-    # def stop_alarm_buffer():
-    # """
-    # Stops the alarm for buffer-related conditions.
-    # """
-    # global alarm_active_buffer
-    # if alarm_active_buffer:
-    #     print("Stopping buffer alarm.")
-    #     pygame.mixer.quit()
-    #     alarm_active_buffer = False
-
-
     def start_lamp():
         # pygame.mixer.init()
         # pygame.mixer.music.load("./data/danger.mp3")
@@ -461,9 +378,7 @@ def main():
             pygame.mixer.music.play()
             alarm_active = True
 
-                            # state.set_infoscreen_state("initial_call_up") #how can i set this only when the sound file has been finished playing?
 
-            # play_through_specific("phone", 100, True, "./data/call1.mp3")
             print("Waiting for button Putdown to be pressed...")
             while state.get_state() == "initial_call_up":
                 if not pygame.mixer.music.get_busy():
@@ -576,9 +491,6 @@ def main():
                         print("Button 1 is pressed. Moving on with the rest of the code.")
                         start_lamp()
                         state.set_state("steam_monitoring")
-                    # elif any(char.isdigit() and char != '1' for char in serial_data):
-                    #     print("wrong action")
-                    #     state.set_state("game_early_end_timeout") #there is anything else in the serial data
                 time.sleep(0.1)
 
         elif state.get_state() == "steam_monitoring":
@@ -626,152 +538,6 @@ def main():
                     state.set_state("control_rods")
                 
         
-        # elif state.get_state() == "control_rods": 
-        #     # Check if the MQTT client is already connected
-        #     if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
-        #         # MQTT Client Setup
-        #         client = mqtt.Client()
-        #         client.on_connect = on_connect
-        #         client.on_message = on_message
-
-        #         connected = False
-        #         while not connected:
-        #             try:
-        #                 client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
-        #                 connected = True
-        #             except Exception as e:
-        #                 print(f"Connection failed: {e}. Retrying in 5 seconds...")
-        #                 time.sleep(5)
-
-        #         client.loop_start()  # Start the MQTT loop to process messages
-
-        #         # Mark the MQTT client as initialized
-        #         state.mqtt_initialized = True
-
-        #     print("Control rods state is active, processing logic...")
-
-        #     serial_data_0 = serial_reader_0.get_data()
-        #     if serial_data_0 is not None:
-        #         print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
-        #         state.set_state("game_early_end_timeout")
-
-            # if current_percentage is not None:
-            #     if current_percentage < 75:
-            #         if alarm_active:
-            #             stop_alarm()
-            #             sendToLedDevice(1)
-            #         time_at_five = time_at_six = time_above_six = None
-            #         current_percentage = None  # Reset current_percentage after handling
-
-            #     elif current_percentage == 75:
-            #         if time_at_five is None:
-            #             time_at_five = time.time()
-            #             stop_alarm()
-            #             sendToLedDevice(1)
-            #             print("Starting timer for state 'waiting'.")
-            #         elif time.time() - time_at_five >= 3:
-                        
-            #             client.publish("reactor/counter", "lock5")
-            #             print("Message has been 5 for 3 consecutive seconds. Changing state to 'waiting'.")
-            #             state.set_state("idle_pump")
-            #             stop_alarm()
-            #             sendToLedDevice(1)
-            #             time_at_five = None
-            #             current_percentage = None  # Reset current_percentage after handling
-
-            #     elif current_percentage > 75:
-            #         if time_at_six is None:
-            #             time_at_six = time.time()
-            #             # state.set_infoscreen_state("wrong_percentage")
-            #             print("Starting timer for state 'game_early_end_timeout'.")
-            #         elif time.time() - time_at_six >= 10:
-            #             print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
-            #             # stop_alarm()
-            #             # sendToLedDevice(1)
-            #             client.publish("reactor/counter", "prepare")
-            #             state.set_state("game_early_end_timeout")
-            #             time_at_six = None
-            #             current_percentage = None  # Reset current_percentage after handling
-
-            #         if not alarm_active and current_percentage is not None:
-            #             start_alarm()
-            #             # sendToLedDevice(-1)
-
-            #     else:
-            #         if alarm_active:
-            #             stop_alarm()
-            #             sendToLedDevice(1)
-            #         time_at_five = time_at_six = time_above_six = None
-            #         current_percentage = None  # Reset current_percentage after handling
-
-            # if current_buffer_value is not None:
-            #         if abs(current_buffer_value) > 45:
-            #             if buffer_timer_start is None:
-            #                 buffer_timer_start = time.time()
-            #                 print("Buffer value exceeded threshold. Starting 6-second timer.")
-            #                 if not alarm_active:
-            #                     start_alarm()
-            #                     alarm_active = True
-
-            #             elif time.time() - buffer_timer_start >= 6:
-            #                 print("Buffer value remained above threshold for 6 seconds. Transitioning to game_early_end_timeout.")
-            #                 # stop_alarm()
-            #                 # sendToLedDevice(1)
-            #                 state.set_state("game_early_end_timeout")
-            #                 break
-            #         else:
-            #             if buffer_timer_start is not None:
-            #                 print("Buffer value fell back below threshold. Resetting timer.")
-            #                 buffer_timer_start = None
-            #             if alarm_active:
-            #                 stop_alarm()
-            #                 alarm_active = False
-    #     if current_percentage is not None or current_buffer_value is not None:
-    #         # Combined alarm condition: percentage > 75 or buffer > 45
-    #         percentage_alarm_condition = current_percentage is not None and current_percentage > 75
-    #         buffer_alarm_condition = current_buffer_value is not None and abs(current_buffer_value) > 45
-
-    # # Check if any alarm condition is met
-    #         if percentage_alarm_condition or buffer_alarm_condition:
-    #             # Start alarm if not already active
-    #             if not alarm_active:
-    #                 start_alarm()
-    #                 alarm_start_time = time.time()  # Record when the alarm starts
-    #                 print("Starting alarm due to percentage or buffer condition.")
-
-    #             # Handle specific percentage-related logic
-    #             if percentage_alarm_condition:
-    #                 if time_at_six is None:
-    #                     time_at_six = time.time()
-    #                     print("Percentage condition exceeded threshold. Starting timer.")
-    #                 elif time.time() - time_at_six >= 10:
-    #                     print("Percentage condition sustained for 10 seconds. Transitioning to game_early_end_timeout.")
-    #                     client.publish("reactor/counter", "prepare")
-    #                     state.set_state("game_early_end_timeout")
-    #                     time_at_six = None
-    #                     current_percentage = None
-
-    #             # Handle specific buffer-related logic
-    #             if buffer_alarm_condition:
-    #                 if buffer_timer_start is None:
-    #                     buffer_timer_start = time.time()
-    #                     print("Buffer value exceeded threshold. Starting 6-second timer.")
-    #                 elif time.time() - buffer_timer_start >= 6:
-    #                     print("Buffer value sustained for 6 seconds. Transitioning to game_early_end_timeout.")
-    #                     state.set_state("game_early_end_timeout")
-    #                     buffer_timer_start = None
-
-    #         else:
-    #             # Check if alarm should stop only after 5 seconds of playing
-    #             if alarm_active and alarm_start_time and time.time() - alarm_start_time >= 5:
-    #                 stop_alarm()
-    #                 sendToLedDevice(1)
-    #                 print("Stopping alarm as no condition is met after minimum duration.")
-    #             time_at_six = None
-    #             buffer_timer_start = None
-
-    #         time.sleep(0.1)  # Prevent tight looping
-
         elif state.get_state() == "control_rods": 
             # Ensure the MQTT client is initialized
             if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
@@ -975,85 +741,6 @@ def main():
                 time.sleep(0.1)
         
                 
-        # elif state.get_state() == "power_up": 
-        #     state.set_infoscreen_state("power_up")
-
-        #     serial_data_0 = serial_reader_0.get_data()
-        #     if serial_data_0 is not None:
-        #         print("Unexpected data received from serial_reader_0. Transitioning to game_early_end_timeout.")
-        #         state.set_state("game_early_end_timeout")
-
-        #     if not hasattr(state, 'mqtt_initialized') or not state.mqtt_initialized:
-        #         # MQTT Client Setup
-        #         client = mqtt.Client()
-        #         client.on_connect = on_connect
-        #         client.on_message = on_message
-
-        #         connected = False
-        #         while not connected:
-        #             try:
-        #                 client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
-        #                 connected = True
-        #             except Exception as e:
-        #                 print(f"Connection failed: {e}. Retrying in 5 seconds...")
-        #                 time.sleep(5)
-
-        #         client.loop_start()  # Start the MQTT loop to process messages
-
-        #         # Mark the MQTT client as initialized
-        #         state.mqtt_initialized = True
-
-        #     print("Control rods state is active, processing logic...")
-        #     if current_percentage is not None:
-        #         if current_percentage < 95:
-        #             if alarm_active:
-        #                 stop_alarm()
-        #                 sendToLedDevice(7)
-        #             time_at_five = time_at_six = time_above_six = None
-        #             current_percentage = None  # Reset current_percentage after handling
-
-        #         elif current_percentage == 95:
-        #             if time_at_five is None:
-        #                 time_at_five = time.time()
-        #                 print("Starting timer for state 'game_end'.")
-        #             elif time.time() - time_at_five >= 3:
-        #                 print("Message has been 5 for 3 consecutive seconds. Changing state to 'game_end'")
-        #                 client.publish("reactor/counter", "lock50")
-        #                 state.set_state("game_end")
-        #                 stop_alarm()
-        #                 sendToLedDevice(7)
-        #                 time_at_five = None
-        #                 current_percentage = None  # Reset current_percentage after handling
-
-        #         elif current_percentage > 95:
-        #             if time_at_six is None:
-        #                 time_at_six = time.time()
-        #                 print("Starting timer for state 'game_early_end_timeout'.")
-        #             elif time.time() - time_at_six >= 10:
-        #                 print("Message has been 6 for 10 consecutive seconds. Resetting percentage to 0.")
-        #                 stop_alarm()
-        #                 client.publish("reactor/counter", "prepare")
-        #                 state.set_state("game_early_end_timeout")
-        #                 time_at_six = None
-        #                 current_percentage = None  # Reset current_percentage after handling
-
-        #             if not alarm_active and current_percentage is not None:
-        #                 start_alarm()
-
-
-
-        #             if not alarm_active and current_percentage is not None:
-        #                 start_alarm()
-
-        #         else:
-        #             if alarm_active:
-        #                 stop_alarm()
-        #                 sendToLedDevice(7)
-        #             time_at_five = time_at_six = time_above_six = None
-        #             current_percentage = None  # Reset current_percentage after handling
-
-        #     time.sleep(0.1)  # Prevent tight looping
-
         elif state.get_state() == "power_up": 
             state.set_infoscreen_state("power_up")
             # Ensure the MQTT client is initialized
