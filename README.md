@@ -1,4 +1,8 @@
-## Initial setup
+# Main game logic code is
+`/gameflow/gameloop3.py`
+
+
+# Initial setup
 
 **clone repository**  
 
